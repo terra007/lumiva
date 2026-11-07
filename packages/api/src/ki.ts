@@ -106,7 +106,10 @@ export async function transkribieren(
   form.append("temperature", "0");
   form.append("vad_filter", "true");
   // Fachwortschatz als Hinweis verbessert die Erkennung, ohne Inhalte vorzugeben.
-  form.append("prompt", "Dokumentation einer Psychotherapie-Sitzung. Patientin, Patient, Therapie.");
+  form.append(
+    "prompt",
+    "Dokumentation einer Psychotherapie-Sitzung. Patientin, Patient, Therapie.",
+  );
   const { text } = (await anfrage(
     `${k.transkriptionUrl}/audio/transcriptions`,
     new Request("http://lumiva/", { method: "POST", body: form }),
