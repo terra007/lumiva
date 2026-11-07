@@ -4,6 +4,11 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 const TEXT = new Map(ICD10_KATALOG.map((e) => [e.code, e.text]));
 
+/** Klein, ohne Bindestriche und doppelte Leerzeichen: „Burn-out“ und „Burnout“ gleich. */
+function normal(text: string) {
+  return text.toLowerCase().replace(/-/g, "").replace(/\s+/g, " ").trim();
+}
+
 /**
  * Mehrfachauswahl für ICD-10-Diagnosen: suchen nach Code oder Text, auswählen, als Chips anzeigen.
  * Jeder gewählte Code geht als eigenes Feld „name“ mit dem Formular mit. Codes außerhalb des
@@ -40,15 +45,28 @@ export function Icd10Auswahl({ name, label }: { name: string; label: string }) {
   }, [offen]);
 
   const treffer = useMemo(() => {
-    const s = suche.trim().toLowerCase();
+    const s = normal(suche);
+    // Jedes Suchwort genügt mit seinen ersten sechs Buchstaben: „Depression“ findet so auch
+    // „depressive Episode“, „Trauma“ die „posttraumatische Belastungsstörung“.
+    const woerter = s
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w.slice(0, 6));
     const liste = ICD10_KATALOG.filter(
       (e) =>
         !gewaehlt.includes(e.code) &&
-        (!s || e.code.toLowerCase().startsWith(s) || e.text.toLowerCase().includes(s)),
+        (woerter.length === 0 ||
+          e.code.toLowerCase().startsWith(s) ||
+          woerter.every((w) => normal(e.text).includes(w))),
     );
+    // Eigener Code nur, wenn der Katalog dazu nichts hat, und nie vor den Treffern.
     const eigener = suche.trim().toUpperCase();
-    if (ICD10_FORMAT.test(eigener) && !TEXT.has(eigener) && !gewaehlt.includes(eigener)) {
-      return [{ code: eigener, text: "Code übernehmen" }, ...liste].slice(0, 50);
+    if (
+      ICD10_FORMAT.test(eigener) &&
+      !gewaehlt.includes(eigener) &&
+      !ICD10_KATALOG.some((e) => e.code.startsWith(eigener))
+    ) {
+      return [...liste, { code: eigener, text: "Code übernehmen" }].slice(0, 50);
     }
     return liste.slice(0, 50);
   }, [suche, gewaehlt]);
@@ -87,7 +105,7 @@ export function Icd10Auswahl({ name, label }: { name: string; label: string }) {
           aria-controls={listeId}
           aria-label={label}
           className="min-w-24 flex-1 bg-transparent font-normal outline-none"
-          placeholder={gewaehlt.length ? "" : "Suchen, z. B. F32 oder Depression"}
+          placeholder={gewaehlt.length ? "" : "F32 oder Begriff"}
           value={suche}
           onFocus={() => setOffen(true)}
           onChange={(e) => {
