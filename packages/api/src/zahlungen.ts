@@ -11,6 +11,7 @@ import { type Datenbank, schema } from "@lumiva/db";
 import { datenschluesselEntpacken, entschluesseln } from "@lumiva/db/crypto";
 import { formatHonorarnoteNummer, wienDatum } from "@lumiva/domain";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { oeffentlicheUrl } from "./adresse";
 import { type Abruf, euroZuCent, SumupFehler, type SumupZugang, sumupClient } from "./sumup";
 
 /** Benutzer-ID im Protokoll für Änderungen, die SumUp ausgelöst hat. */
@@ -23,11 +24,6 @@ const TERMINAL_FRIST_MS = 3 * 60_000;
 
 type Praxis = { id: string; schluessel: Buffer };
 type Zahlung = typeof schema.zahlungen.$inferSelect;
-
-/** Öffentliche Adresse von LUMIVA für Webhook, Rücksprung und QR-Code. */
-export function oeffentlicheUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.LUMIVA_URL ?? env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
-}
 
 /** SumUp ruft Webhooks nur über HTTPS auf; lokal wird stattdessen nachgefragt (Abgleich). */
 export function webhookUrl(zahlungId: string): string | undefined {

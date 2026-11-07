@@ -4,6 +4,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 import { patientenFilter } from "../sichtbarkeit";
 import { SumupFehler, sumupClient } from "../sumup";
+import { DEMO_HAENDLERCODE, DEMO_TERMINAL, demoErlaubt } from "../sumup-demo";
 import { inhaberIn, inPraxis, router } from "../trpc";
 import { enc, protokollieren } from "../werkzeuge";
 import {
@@ -70,6 +71,7 @@ export const zahlungenRouter = router({
       online: konto !== null,
       terminal: Boolean(konto?.terminalId && konto.affiliate),
       terminalName: konto?.terminalName ?? null,
+      demo: konto?.haendlerCode === DEMO_HAENDLERCODE,
     };
   }),
 
@@ -85,6 +87,8 @@ export const zahlungenRouter = router({
       affiliateAppId: k?.affiliateAppId ?? "",
       affiliateSchluesselGesetzt: Boolean(k?.affiliateSchluesselEnc),
       terminalName: k?.terminalName ?? null,
+      demo: k?.haendlerCode === DEMO_HAENDLERCODE,
+      demoErlaubt: demoErlaubt(),
     };
   }),
 
@@ -103,6 +107,11 @@ export const zahlungenRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      if (input.haendlerCode === DEMO_HAENDLERCODE)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Für die Demo den Demo-Knopf nutzen.",
+        });
       const [bisher] = await ctx.db
         .select()
         .from(schema.sumupKonten)
@@ -135,6 +144,27 @@ export const zahlungenRouter = router({
         apiSchluesselNeu: Boolean(input.apiSchluessel),
       });
     }),
+
+  /** Demo ohne SumUp-Konto: simuliertes Händlerkonto mit gekoppeltem Terminal. */
+  demoEinschalten: inhaberIn.mutation(async ({ ctx }) => {
+    if (!demoErlaubt())
+      throw new TRPCError({ code: "FORBIDDEN", message: "Der Demo-Modus ist hier ausgeschaltet." });
+    const id = ctx.praxis.id;
+    const werte = {
+      haendlerCode: DEMO_HAENDLERCODE,
+      apiSchluesselEnc: enc(ctx.praxis, "sumup_konten.api_schluessel", id, "demo"),
+      affiliateAppId: "demo",
+      affiliateSchluesselEnc: enc(ctx.praxis, "sumup_konten.affiliate_schluessel", id, "demo"),
+      terminalId: DEMO_TERMINAL.id,
+      terminalName: DEMO_TERMINAL.name,
+      geaendertAm: new Date(),
+    };
+    await ctx.db
+      .insert(schema.sumupKonten)
+      .values({ praxisId: id, ...werte })
+      .onConflictDoUpdate({ target: schema.sumupKonten.praxisId, set: werte });
+    await protokollieren(ctx, "sumup_demo", "praxis", id);
+  }),
 
   trennen: inhaberIn.mutation(async ({ ctx }) => {
     await ctx.db.delete(schema.sumupKonten).where(eq(schema.sumupKonten.praxisId, ctx.praxis.id));
