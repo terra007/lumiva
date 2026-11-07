@@ -59,7 +59,8 @@ export function KiAufnahme({
       return;
     }
     const teile: Blob[] = [];
-    const r = new MediaRecorder(stream);
+    // 32 kbit/s reichen für Sprache: 50 Minuten sind dann etwa 12 MB.
+    const r = new MediaRecorder(stream, { audioBitsPerSecond: 32_000 });
     r.ondataavailable = (e) => teile.push(e.data);
     r.onstop = () => {
       mikrofonAus(stream);
@@ -85,9 +86,17 @@ export function KiAufnahme({
     );
     try {
       const antwort = await fetch("/api/ki/entwurf", { method: "POST", body: daten });
-      const ergebnis = (await antwort.json()) as { entwurf?: string; fehler?: string };
+      const ergebnis = (await antwort.json().catch(() => ({}))) as {
+        entwurf?: string;
+        fehler?: string;
+      };
       if (!antwort.ok || !ergebnis.entwurf) {
-        setFehler(ergebnis.fehler ?? "Die KI konnte keinen Entwurf erstellen.");
+        setFehler(
+          ergebnis.fehler ??
+            (antwort.status === 413
+              ? "Die Aufnahme ist zu lang."
+              : `Die KI konnte keinen Entwurf erstellen (Fehler ${antwort.status}).`),
+        );
       } else {
         const feld = form?.querySelector<HTMLTextAreaElement>("[name=inhalt]");
         if (feld) {

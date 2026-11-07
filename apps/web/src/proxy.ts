@@ -23,4 +23,5 @@ export function proxy(req: NextRequest) {
   return antwort;
 }
 
-export const config = { matcher: "/api/:path*" };
+// Ohne /api/ki: Der Proxy puffert Anfragen und kappt sie bei 10 MB, Aufnahmen sind größer.
+export const config = { matcher: "/api/((?!ki/).*)" };

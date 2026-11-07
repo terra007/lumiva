@@ -1,13 +1,19 @@
 /**
  * KI-Unterstützung für die Dokumentation, ausschließlich über selbst betriebene Dienste.
  *
- * Beide Dienste sprechen die verbreitete OpenAI-kompatible Schnittstelle, laufen aber auf dem
- * eigenen Server (siehe deploy/ionos): Sprache zu Text mit Whisper (z. B. Speaches),
- * Doku-Entwurf mit einem freien Sprachmodell über Ollama. Ohne Konfiguration ist die KI aus;
+ * Beide laufen auf dem eigenen Server (siehe deploy/ionos): Sprache zu Text mit Whisper über
+ * Speaches (OpenAI-kompatible Schnittstelle), Doku-Entwurf mit einem freien Sprachmodell über
+ * die Schnittstelle von Ollama. Ohne Konfiguration ist die KI aus;
  * es gibt bewusst keine Voreinstellung auf einen fremden Anbieter.
  *
  * Die Aufnahme wird nur im Arbeitsspeicher verarbeitet und nie gespeichert.
  */
+
+import { request as httpAnfrage } from "node:http";
+import { request as httpsAnfrage } from "node:https";
+import type { schema } from "@lumiva/db";
+
+export type DokuArt = (typeof schema.eintragArt.enumValues)[number];
 
 export type KiKonfiguration = {
   transkriptionUrl: string;
@@ -22,9 +28,9 @@ export function kiKonfiguration(env: NodeJS.ProcessEnv = process.env): KiKonfigu
   if (!transkriptionUrl || !sprachmodellUrl) return null;
   return {
     transkriptionUrl: transkriptionUrl.replace(/\/$/, ""),
-    transkriptionModell: env.LUMIVA_KI_TRANSKRIPTION_MODELL ?? "Systran/faster-whisper-medium",
+    transkriptionModell: env.LUMIVA_KI_TRANSKRIPTION_MODELL || "Systran/faster-whisper-medium",
     sprachmodellUrl: sprachmodellUrl.replace(/\/$/, ""),
-    sprachmodell: env.LUMIVA_KI_SPRACHMODELL ?? "qwen2.5:7b-instruct",
+    sprachmodell: env.LUMIVA_KI_SPRACHMODELL || "qwen2.5:7b-instruct",
   };
 }
 
@@ -33,16 +39,50 @@ export const MAX_AUDIO_BYTES = 40 * 1024 * 1024;
 
 export class KiFehler extends Error {}
 
-async function anfrage(url: string, init: RequestInit, dienst: string): Promise<Response> {
-  let antwort: Response;
-  try {
-    antwort = await fetch(url, { ...init, signal: AbortSignal.timeout(10 * 60_000) });
-  } catch {
-    throw new KiFehler(`Der ${dienst} ist nicht erreichbar.`);
-  }
-  // Nur den Status melden: Die Antwort könnte Teile des Diktats enthalten.
-  if (!antwort.ok) throw new KiFehler(`Der ${dienst} antwortet mit Fehler ${antwort.status}.`);
-  return antwort;
+/**
+ * Eine ganze Sitzung zu transkribieren dauert auf der CPU 15 bis 25 Minuten. fetch() bricht
+ * nach 5 Minuten ohne Antwortkopf ab, deshalb hier node:http mit eigener Zeitgrenze.
+ */
+const ZEITGRENZE_MS = 60 * 60_000;
+
+async function anfrage(url: string, inhalt: Request, dienst: string): Promise<unknown> {
+  const body = Buffer.from(await inhalt.arrayBuffer());
+  const ziel = new URL(url);
+  const senden = ziel.protocol === "https:" ? httpsAnfrage : httpAnfrage;
+  return new Promise((erfuellen, ablehnen) => {
+    const req = senden(
+      ziel,
+      {
+        method: "POST",
+        headers: {
+          "content-type": inhalt.headers.get("content-type") ?? "application/octet-stream",
+          "content-length": body.byteLength,
+        },
+        timeout: ZEITGRENZE_MS,
+      },
+      (res) => {
+        const teile: Buffer[] = [];
+        res.on("data", (t: Buffer) => teile.push(t));
+        res.on("end", () => {
+          const status = res.statusCode ?? 0;
+          // Nur den Status melden: Die Antwort könnte Teile des Diktats enthalten.
+          if (status < 200 || status >= 300) {
+            ablehnen(new KiFehler(`Der ${dienst} antwortet mit Fehler ${status}.`));
+            return;
+          }
+          try {
+            erfuellen(JSON.parse(Buffer.concat(teile).toString("utf8")));
+          } catch {
+            ablehnen(new KiFehler(`Der ${dienst} liefert eine ungültige Antwort.`));
+          }
+        });
+        res.on("error", () => ablehnen(new KiFehler(`Der ${dienst} ist nicht erreichbar.`)));
+      },
+    );
+    req.on("timeout", () => req.destroy());
+    req.on("error", () => ablehnen(new KiFehler(`Der ${dienst} ist nicht erreichbar.`)));
+    req.end(body);
+  });
 }
 
 /** Sprache zu Text (Deutsch). */
@@ -53,20 +93,23 @@ export async function transkribieren(
 ): Promise<string> {
   const form = new FormData();
   const endung = mimeType.includes("mp4") ? "m4a" : mimeType.includes("ogg") ? "ogg" : "webm";
-  form.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), `diktat.${endung}`);
+  form.append(
+    "file",
+    new Blob([audio as Uint8Array<ArrayBuffer>], { type: mimeType }),
+    `diktat.${endung}`,
+  );
   form.append("model", k.transkriptionModell);
   form.append("language", "de");
   form.append("response_format", "json");
-  const antwort = await anfrage(
+  const { text } = (await anfrage(
     `${k.transkriptionUrl}/audio/transcriptions`,
-    { method: "POST", body: form },
+    new Request("http://lumiva/", { method: "POST", body: form }),
     "Transkriptionsdienst",
-  );
-  const { text } = (await antwort.json()) as { text?: string };
+  )) as { text?: string };
   return (text ?? "").trim();
 }
 
-const ART_TEXT: Record<string, string> = {
+const ART_TEXT: Record<DokuArt, string> = {
   erstgespraech: "Erstgespräch",
   verlauf: "Verlaufseintrag",
   abschluss: "Abschlussbericht",
@@ -90,28 +133,30 @@ Schlage keine Diagnosen vor. Keine Einleitung und kein Schlusssatz, nur der Entw
 export async function dokuEntwurf(
   k: KiKonfiguration,
   transkript: string,
-  art: string,
+  art: DokuArt,
   modus: keyof typeof QUELLE,
 ): Promise<string> {
-  const antwort = await anfrage(
-    `${k.sprachmodellUrl}/chat/completions`,
-    {
+  // Native Schnittstelle von Ollama, weil nur sie die Kontextlänge setzen lässt. Mit der
+  // Voreinstellung (2k bis 4k Token) würde ein Sitzungstranskript stillschweigend gekürzt.
+  const daten = (await anfrage(
+    `${k.sprachmodellUrl}/api/chat`,
+    new Request("http://lumiva/", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         model: k.sprachmodell,
-        temperature: 0.2,
+        stream: false,
+        options: { temperature: 0.2, num_ctx: 32_768 },
         messages: [
           { role: "system", content: `${ANWEISUNG}\n${QUELLE[modus]}` },
           {
             role: "user",
-            content: `Art des Eintrags: ${ART_TEXT[art] ?? "Verlaufseintrag"}\n\nQuelle:\n${transkript}`,
+            content: `Art des Eintrags: ${ART_TEXT[art]}\n\nQuelle:\n${transkript}`,
           },
         ],
       }),
-    },
+    }),
     "Sprachmodell-Dienst",
-  );
-  const daten = (await antwort.json()) as { choices?: { message?: { content?: string } }[] };
-  return (daten.choices?.[0]?.message?.content ?? "").trim();
+  )) as { message?: { content?: string } };
+  return (daten.message?.content ?? "").trim();
 }

@@ -1,3 +1,4 @@
+import { schema } from "@lumiva/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { dokuEntwurf, KiFehler, kiKonfiguration, MAX_AUDIO_BYTES, transkribieren } from "../ki";
@@ -17,7 +18,7 @@ export const kiRouter = router({
     .input(
       z.object({
         patientId: z.uuid(),
-        art: z.enum(["erstgespraech", "verlauf", "abschluss", "notiz"]),
+        art: z.enum(schema.eintragArt.enumValues),
         /** diktat: Therapeut:in spricht nach der Sitzung; sitzung: Aufnahme der ganzen Sitzung. */
         modus: z.enum(["diktat", "sitzung"]),
         audio: z.instanceof(Uint8Array).refine((a) => a.byteLength > 0, "Aufnahme ist leer"),
@@ -43,6 +44,8 @@ export const kiRouter = router({
           message: "Für die Aufnahme der Sitzung fehlt die Einwilligung der Patient:in.",
         });
       }
+      // Vor der Verarbeitung protokollieren: Auch ein fehlgeschlagener Versuch ist ein Aktenzugriff.
+      await protokollieren(ctx, "ki-entwurf", "patient", patient.id, { modus: input.modus });
       try {
         const transkript = await transkribieren(k, input.audio, input.mimeType);
         if (!transkript) {
@@ -52,7 +55,6 @@ export const kiRouter = router({
           });
         }
         const entwurf = await dokuEntwurf(k, transkript, input.art, input.modus);
-        await protokollieren(ctx, "ki-entwurf", "patient", patient.id, { modus: input.modus });
         return { entwurf };
       } catch (e) {
         if (e instanceof KiFehler) {

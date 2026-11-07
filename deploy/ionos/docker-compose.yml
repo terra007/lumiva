@@ -28,7 +28,7 @@ services:
       # KI nur über die beiden Dienste unten, im internen Netz dieses Servers.
       LUMIVA_KI_TRANSKRIPTION_URL: http://whisper:8000/v1
       LUMIVA_KI_TRANSKRIPTION_MODELL: ${WHISPER_MODELL}
-      LUMIVA_KI_SPRACHMODELL_URL: http://ollama:11434/v1
+      LUMIVA_KI_SPRACHMODELL_URL: http://ollama:11434
       LUMIVA_KI_SPRACHMODELL: ${SPRACHMODELL}
     depends_on:
       datenbank:
