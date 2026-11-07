@@ -11,7 +11,7 @@ import { z } from "zod";
 import { honorarnotePdf } from "../pdf";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router, therapeutisch } from "../trpc";
-import { dec, decOpt, enc, protokollieren } from "../werkzeuge";
+import { dec, decOpt, enc, patientName, protokollieren } from "../werkzeuge";
 import { letzteDiagnose } from "./doku";
 
 type Ctx = Parameters<typeof patientLaden>[0];
@@ -106,7 +106,7 @@ export const honorarnotenRouter = router({
         id: note.id,
         nummer: formatHonorarnoteNummer(note.jahr, note.laufendeNummer),
         patientId: note.patientId,
-        patientName: `${dec(ctx.praxis, "patienten.vorname", note.patientId, vornameEnc)} ${dec(ctx.praxis, "patienten.nachname", note.patientId, nachnameEnc)}`,
+        patientName: patientName(ctx.praxis, note.patientId, vornameEnc, nachnameEnc),
         ausgestelltAm: note.ausgestelltAm,
         summeCent: note.summeCent,
         bezahltAm: note.bezahltAm,
@@ -127,24 +127,24 @@ export const honorarnotenRouter = router({
           message: "Ein Termin ist nicht (mehr) abrechenbar.",
         });
       }
-      const [praxis] = await ctx.db
-        .select()
-        .from(schema.praxen)
-        .where(eq(schema.praxen.id, ctx.praxis.id));
-      const [therapeut] = await ctx.db
-        .select({
-          name: schema.user.name,
-          berufsbezeichnung: schema.mitgliedschaften.berufsbezeichnung,
-        })
-        .from(schema.user)
-        .leftJoin(
-          schema.mitgliedschaften,
-          and(
-            eq(schema.mitgliedschaften.benutzerId, schema.user.id),
-            eq(schema.mitgliedschaften.praxisId, ctx.praxis.id),
-          ),
-        )
-        .where(eq(schema.user.id, patient.therapeutId));
+      const [[praxis], [therapeut], diagnoseIcd10] = await Promise.all([
+        ctx.db.select().from(schema.praxen).where(eq(schema.praxen.id, ctx.praxis.id)),
+        ctx.db
+          .select({
+            name: schema.user.name,
+            berufsbezeichnung: schema.mitgliedschaften.berufsbezeichnung,
+          })
+          .from(schema.user)
+          .leftJoin(
+            schema.mitgliedschaften,
+            and(
+              eq(schema.mitgliedschaften.benutzerId, schema.user.id),
+              eq(schema.mitgliedschaften.praxisId, ctx.praxis.id),
+            ),
+          )
+          .where(eq(schema.user.id, patient.therapeutId)),
+        letzteDiagnose(ctx, patient.id),
+      ]);
       if (!praxis) throw new TRPCError({ code: "NOT_FOUND" });
       const kontakt = JSON.parse(
         decOpt(ctx.praxis, "patienten.kontakt", patient.id, patient.kontaktEnc) ?? "{}",
@@ -181,7 +181,7 @@ export const honorarnotenRouter = router({
           versicherungstraeger: patient.versicherungstraeger,
           anschrift: kontakt.anschrift || null,
         },
-        diagnoseIcd10: await letzteDiagnose(ctx, patient.id),
+        diagnoseIcd10,
         sitzungen: gewaehlt.map((t) => ({
           datum: wienDatum(t.beginn),
           dauerMinuten: t.dauerMinuten,

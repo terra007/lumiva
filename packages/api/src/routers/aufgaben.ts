@@ -4,7 +4,7 @@ import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { patientLaden } from "../sichtbarkeit";
 import { inPraxis, router } from "../trpc";
-import { dec } from "../werkzeuge";
+import { patientName } from "../werkzeuge";
 
 export const aufgabenRouter = router({
   liste: inPraxis
@@ -37,7 +37,7 @@ export const aufgabenRouter = router({
         ...aufgabe,
         patientName:
           aufgabe.patientId && vornameEnc && nachnameEnc
-            ? `${dec(ctx.praxis, "patienten.vorname", aufgabe.patientId, vornameEnc)} ${dec(ctx.praxis, "patienten.nachname", aufgabe.patientId, nachnameEnc)}`
+            ? patientName(ctx.praxis, aufgabe.patientId, vornameEnc, nachnameEnc)
             : null,
       }));
     }),

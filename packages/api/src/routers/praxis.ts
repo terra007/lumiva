@@ -3,7 +3,7 @@ import { datenschluesselVerpacken, neuerSchluessel } from "@lumiva/db/crypto";
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { angemeldet, inPraxis, oeffentlich, router } from "../trpc";
+import { angemeldet, inhaberIn, inPraxis, oeffentlich, router } from "../trpc";
 
 const praxisDaten = z.object({
   name: z.string().trim().min(2).max(120),
@@ -26,6 +26,10 @@ const STANDARD_SITZUNGSARTEN = [
   { name: "Paarsitzung", dauerMinuten: 75, honorarCent: 13000 },
 ];
 
+const praxisEingabe = praxisDaten.extend({
+  berufsbezeichnung: z.string().trim().max(120).optional(),
+});
+
 export const praxisRouter = router({
   /** Wer bin ich, und habe ich schon eine Praxis? Öffentlich, damit die Oberfläche weiß, was sie zeigen soll. */
   ich: oeffentlich.query(({ ctx }) => ({
@@ -35,34 +39,32 @@ export const praxisRouter = router({
       : null,
   })),
 
-  anlegen: angemeldet
-    .input(praxisDaten.extend({ berufsbezeichnung: z.string().trim().max(120).optional() }))
-    .mutation(async ({ ctx, input }) => {
-      if (ctx.praxis)
-        throw new TRPCError({ code: "CONFLICT", message: "Du hast bereits eine Praxis." });
-      const id = crypto.randomUUID();
-      await ctx.db.transaction(async (tx) => {
-        await tx.insert(schema.praxen).values({
-          id,
-          name: input.name,
-          anschrift: input.anschrift,
-          telefon: input.telefon || null,
-          email: input.email || null,
-          iban: input.iban || null,
-          datenschluesselEnc: datenschluesselVerpacken(neuerSchluessel(), ctx.hauptschluessel, id),
-        });
-        await tx.insert(schema.mitgliedschaften).values({
-          praxisId: id,
-          benutzerId: ctx.benutzer.id,
-          rolle: "inhaber",
-          berufsbezeichnung: input.berufsbezeichnung || null,
-        });
-        await tx
-          .insert(schema.sitzungsarten)
-          .values(STANDARD_SITZUNGSARTEN.map((s) => ({ ...s, praxisId: id })));
+  anlegen: angemeldet.input(praxisEingabe).mutation(async ({ ctx, input }) => {
+    if (ctx.praxis)
+      throw new TRPCError({ code: "CONFLICT", message: "Du hast bereits eine Praxis." });
+    const id = crypto.randomUUID();
+    await ctx.db.transaction(async (tx) => {
+      await tx.insert(schema.praxen).values({
+        id,
+        name: input.name,
+        anschrift: input.anschrift,
+        telefon: input.telefon || null,
+        email: input.email || null,
+        iban: input.iban || null,
+        datenschluesselEnc: datenschluesselVerpacken(neuerSchluessel(), ctx.hauptschluessel, id),
       });
-      return { id };
-    }),
+      await tx.insert(schema.mitgliedschaften).values({
+        praxisId: id,
+        benutzerId: ctx.benutzer.id,
+        rolle: "inhaber",
+        berufsbezeichnung: input.berufsbezeichnung || null,
+      });
+      await tx
+        .insert(schema.sitzungsarten)
+        .values(STANDARD_SITZUNGSARTEN.map((s) => ({ ...s, praxisId: id })));
+    });
+    return { id };
+  }),
 
   einstellungen: inPraxis.query(async ({ ctx }) => {
     const [praxis] = await ctx.db
@@ -90,35 +92,27 @@ export const praxisRouter = router({
     };
   }),
 
-  speichern: inPraxis
-    .input(praxisDaten.extend({ berufsbezeichnung: z.string().trim().max(120).optional() }))
-    .mutation(async ({ ctx, input }) => {
-      if (ctx.praxis.rolle !== "inhaber") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Nur die Inhaber:in ändert Praxisdaten.",
-        });
-      }
-      await ctx.db
-        .update(schema.praxen)
-        .set({
-          name: input.name,
-          anschrift: input.anschrift,
-          telefon: input.telefon || null,
-          email: input.email || null,
-          iban: input.iban || null,
-        })
-        .where(eq(schema.praxen.id, ctx.praxis.id));
-      await ctx.db
-        .update(schema.mitgliedschaften)
-        .set({ berufsbezeichnung: input.berufsbezeichnung || null })
-        .where(
-          and(
-            eq(schema.mitgliedschaften.praxisId, ctx.praxis.id),
-            eq(schema.mitgliedschaften.benutzerId, ctx.benutzer.id),
-          ),
-        );
-    }),
+  speichern: inhaberIn.input(praxisEingabe).mutation(async ({ ctx, input }) => {
+    await ctx.db
+      .update(schema.praxen)
+      .set({
+        name: input.name,
+        anschrift: input.anschrift,
+        telefon: input.telefon || null,
+        email: input.email || null,
+        iban: input.iban || null,
+      })
+      .where(eq(schema.praxen.id, ctx.praxis.id));
+    await ctx.db
+      .update(schema.mitgliedschaften)
+      .set({ berufsbezeichnung: input.berufsbezeichnung || null })
+      .where(
+        and(
+          eq(schema.mitgliedschaften.praxisId, ctx.praxis.id),
+          eq(schema.mitgliedschaften.benutzerId, ctx.benutzer.id),
+        ),
+      );
+  }),
 
   sitzungsarten: inPraxis.query(({ ctx }) =>
     ctx.db
@@ -128,7 +122,7 @@ export const praxisRouter = router({
       .orderBy(asc(schema.sitzungsarten.name)),
   ),
 
-  sitzungsartSpeichern: inPraxis
+  sitzungsartSpeichern: inhaberIn
     .input(
       z.object({
         id: z.uuid().optional(),

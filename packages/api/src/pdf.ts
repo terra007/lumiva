@@ -1,14 +1,11 @@
-import { formatEuro, type HonorarnoteInhalt, UST_BEFREIUNGSVERMERK } from "@lumiva/domain";
+import {
+  formatDatum,
+  formatEuro,
+  type HonorarnoteInhalt,
+  TRAEGER_NAME,
+  UST_BEFREIUNGSVERMERK,
+} from "@lumiva/domain";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-
-const TRAEGER: Record<string, string> = {
-  oegk: "ÖGK",
-  bvaeb: "BVAEB",
-  svs: "SVS",
-  kfa: "KFA",
-  privat: "Selbstzahler:in",
-  sonstige: "Sonstige",
-};
 
 // Zeichen, die Helvetica (WinAnsi) zusätzlich zu Latin-1 darstellen kann.
 const WIN_ANSI_EXTRA = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ");
@@ -30,11 +27,6 @@ export function druckbar(t: string): string {
     aus += [...ohneAkzent].every((c) => (c.codePointAt(0) ?? 0) <= 0xff) ? ohneAkzent : "?";
   }
   return aus;
-}
-
-function datum(iso: string) {
-  const [j, m, t] = iso.split("-");
-  return `${t}.${m}.${j}`;
 }
 
 /** Honorarnote als PDF, A4, mit allen Angaben für den Kostenzuschuss. */
@@ -121,16 +113,16 @@ export async function honorarnotePdf(
 
   y -= 40;
   text(`Honorarnote Nr. ${n.nummer}`, links, { groesse: 16, bold: true });
-  rechtsbuendig(`Datum: ${datum(n.ausstellungsdatum)}`, rechts);
+  rechtsbuendig(`Datum: ${formatDatum(n.ausstellungsdatum)}`, rechts);
 
   // Angaben für den Kostenzuschuss
   y -= 26;
   const angaben: [string, string][] = [
-    ["Geburtsdatum", datum(n.patient.geburtsdatum)],
+    ["Geburtsdatum", formatDatum(n.patient.geburtsdatum)],
     ["Sozialversicherungsnr.", n.patient.svNummer ?? "–"],
     [
       "Versicherungsträger",
-      TRAEGER[n.patient.versicherungstraeger] ?? n.patient.versicherungstraeger,
+      TRAEGER_NAME[n.patient.versicherungstraeger] ?? n.patient.versicherungstraeger,
     ],
     ["Diagnose (ICD-10)", n.diagnoseIcd10 ?? "–"],
   ];
@@ -151,7 +143,7 @@ export async function honorarnotePdf(
   for (const s of n.sitzungen) {
     platz(16);
     y -= 16;
-    text(datum(s.datum), links);
+    text(formatDatum(s.datum), links);
     text(s.bezeichnung, links + 80);
     rechtsbuendig(`${s.dauerMinuten} Min.`, links + 380);
     rechtsbuendig(formatEuro(s.honorarCent), rechts);
@@ -179,11 +171,11 @@ export async function honorarnotePdf(
   }
   if (vermerke.bezahltAm) {
     y -= 24;
-    text(`Betrag dankend erhalten am ${datum(vermerke.bezahltAm)}.`, links, { bold: true });
+    text(`Betrag dankend erhalten am ${formatDatum(vermerke.bezahltAm)}.`, links, { bold: true });
   }
   if (vermerke.storniertAm) {
     y -= 24;
-    text(`STORNIERT am ${datum(vermerke.storniertAm)}`, links, {
+    text(`STORNIERT am ${formatDatum(vermerke.storniertAm)}`, links, {
       groesse: 14,
       bold: true,
       farbe: rgb(0.7, 0.15, 0.15),

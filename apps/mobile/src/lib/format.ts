@@ -1,6 +1,6 @@
-import { formatEuro, wienZeit } from "@lumiva/domain";
+import { formatEuro, TRAEGER_NAME, wienZeit } from "@lumiva/domain";
 
-export { formatDatum, formatDatumLang } from "@lumiva/domain";
+export { formatDatum, formatDatumLang, wienDatum } from "@lumiva/domain";
 export const euro = (cent: number) => formatEuro(cent).replace(/ /g, " ");
 export const uhrzeit = (d: Date) => wienZeit(d);
 
@@ -11,14 +11,7 @@ export const STATUS: Record<string, string> = {
   nicht_erschienen: "Nicht erschienen",
 };
 
-export const TRAEGER: Record<string, string> = {
-  oegk: "ÖGK",
-  bvaeb: "BVAEB",
-  svs: "SVS",
-  kfa: "KFA",
-  privat: "Selbstzahler:in",
-  sonstige: "Sonstige",
-};
+export const TRAEGER = TRAEGER_NAME;
 
 export function hinweisText(h: { art: string; verbleibendeSitzungen?: number }): string {
   switch (h.art) {

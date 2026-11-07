@@ -6,6 +6,8 @@ import { type Datenbank, datenbankVerbinden } from "@lumiva/db";
 import { neuerSchluessel, schluesselAusBase64 } from "@lumiva/db/crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
+import { herkuenfte } from "./herkuenfte";
 
 type Dienste = { db: Datenbank; auth: Auth; hauptschluessel: Buffer };
 
@@ -54,7 +56,7 @@ async function starten(): Promise<Dienste> {
     db,
     secret: geheimnisLaden(),
     baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-    vertrauteHerkuenfte: (process.env.LUMIVA_HERKUENFTE ?? "http://localhost:8081").split(","),
+    vertrauteHerkuenfte: herkuenfte(),
   });
   return { db, auth, hauptschluessel: hauptschluesselLaden() };
 }
@@ -73,15 +75,18 @@ export async function kontextAus(h: Headers) {
 
 /** tRPC-Aufrufer für Server-Komponenten und Server-Aktionen, mit der Sitzung der aktuellen Anfrage. */
 export async function api() {
-  return createCaller(await kontextAus(await headers()));
+  return createCaller(await anfrageKontext());
 }
+
+/** Ein Kontext je Anfrage: Layout und Seite teilen sich Sitzung und Praxisschlüssel. */
+const anfrageKontext = cache(async () => kontextAus(await headers()));
 
 /**
  * Für Seiten im angemeldeten Bereich. Layout und Seite rendern in Next.js parallel,
  * deshalb prüft jede Seite selbst und leitet um, statt sich auf das Layout zu verlassen.
  */
 export async function praxisApi() {
-  const kontext = await kontextAus(await headers());
+  const kontext = await anfrageKontext();
   if (!kontext.benutzer) redirect("/anmelden");
   if (!kontext.praxis) redirect("/einrichten");
   return createCaller(kontext);

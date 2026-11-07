@@ -4,7 +4,15 @@ import { View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { Fehler, Karte, Laden, Seite } from "@/components/ui";
 import { Spacing } from "@/constants/theme";
-import { fehlerText, formatDatum, hinweisText, STATUS, TRAEGER, uhrzeit } from "@/lib/format";
+import {
+  fehlerText,
+  formatDatum,
+  hinweisText,
+  STATUS,
+  TRAEGER,
+  uhrzeit,
+  wienDatum,
+} from "@/lib/format";
 import { useTRPC } from "@/lib/trpc";
 
 const TAG = 24 * 60 * 60_000;
@@ -57,7 +65,7 @@ export default function Patient() {
       {kommend.slice(0, 6).map((t) => (
         <Zeile
           key={t.id}
-          k={`${formatDatum(t.beginn.toISOString())} ${uhrzeit(t.beginn)}`}
+          k={`${formatDatum(wienDatum(t.beginn))} ${uhrzeit(t.beginn)}`}
           v={STATUS[t.status] ?? t.status}
         />
       ))}
@@ -67,7 +75,7 @@ export default function Patient() {
       {vergangen.slice(0, 6).map((t) => (
         <Zeile
           key={t.id}
-          k={`${formatDatum(t.beginn.toISOString())} ${uhrzeit(t.beginn)}`}
+          k={`${formatDatum(wienDatum(t.beginn))} ${uhrzeit(t.beginn)}`}
           v={STATUS[t.status] ?? t.status}
         />
       ))}

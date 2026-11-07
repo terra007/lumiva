@@ -1,11 +1,11 @@
 import { schema } from "@lumiva/db";
 import { tageAddieren, wienDatum, wienZeit, wienZuDate } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, gte, lt } from "drizzle-orm";
 import { z } from "zod";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router } from "../trpc";
-import { dec, protokollieren } from "../werkzeuge";
+import { patientName, protokollieren } from "../werkzeuge";
 
 const MINUTE = 60_000;
 
@@ -38,12 +38,7 @@ export async function termineImZeitraum(
   return zeilen.map(({ termin, vornameEnc, nachnameEnc, sitzungsart }) => ({
     ...termin,
     sitzungsart: sitzungsart ?? "Sitzung",
-    patientName: `${dec(ctx.praxis, "patienten.vorname", termin.patientId, vornameEnc)} ${dec(
-      ctx.praxis,
-      "patienten.nachname",
-      termin.patientId,
-      nachnameEnc,
-    )}`,
+    patientName: patientName(ctx.praxis, termin.patientId, vornameEnc, nachnameEnc),
   }));
 }
 
@@ -192,9 +187,8 @@ export const termineRouter = router({
       }
       if (input.ganzeSerie && termin.serieId) {
         // Nur künftige, noch geplante Termine der Serie.
-        const serie = await ctx.db
-          .select({ id: schema.termine.id })
-          .from(schema.termine)
+        await ctx.db
+          .delete(schema.termine)
           .where(
             and(
               eq(schema.termine.praxisId, ctx.praxis.id),
@@ -203,12 +197,6 @@ export const termineRouter = router({
               gte(schema.termine.beginn, termin.beginn),
             ),
           );
-        await ctx.db.delete(schema.termine).where(
-          inArray(
-            schema.termine.id,
-            serie.map((s) => s.id),
-          ),
-        );
       } else {
         await ctx.db.delete(schema.termine).where(eq(schema.termine.id, termin.id));
       }

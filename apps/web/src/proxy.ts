@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { herkuenfte } from "./server/herkuenfte";
 
-/** Herkünfte, die die API mit Anmeldung aufrufen dürfen, z. B. die Expo-Webvorschau der App. */
-const ERLAUBT = new Set(
-  (process.env.LUMIVA_HERKUENFTE ?? "http://localhost:8081").split(",").map((s) => s.trim()),
-);
+const ERLAUBT = new Set(herkuenfte());
 
 export function proxy(req: NextRequest) {
   const herkunft = req.headers.get("origin");

@@ -1,4 +1,4 @@
-import { formatEuro, wienDatum, wienZeit } from "@lumiva/domain";
+import { formatEuro, TRAEGER_NAME, wienDatum, wienZeit } from "@lumiva/domain";
 
 export { formatDatum, formatDatumLang, formatEuro } from "@lumiva/domain";
 
@@ -6,14 +6,7 @@ export const euro = (cent: number) => formatEuro(cent).replace(/ /g, " ");
 export const uhrzeit = (d: Date) => wienZeit(d);
 export const datumIso = (d: Date) => wienDatum(d);
 
-export const TRAEGER: Record<string, string> = {
-  oegk: "ÖGK",
-  bvaeb: "BVAEB",
-  svs: "SVS",
-  kfa: "KFA",
-  privat: "Selbstzahler:in",
-  sonstige: "Sonstige",
-};
+export const TRAEGER = TRAEGER_NAME;
 
 export const TERMIN_STATUS: Record<string, { text: string; klasse: string }> = {
   geplant: { text: "Geplant", klasse: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200" },

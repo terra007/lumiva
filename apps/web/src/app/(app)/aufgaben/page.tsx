@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AktionsKnopf, Formular } from "@/components/formular";
-import { formatDatum } from "@/lib/format";
+import { datumIso, formatDatum } from "@/lib/format";
 import { aufgabeAnlegen, aufgabeErledigen, aufgabeLoeschen } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
 
@@ -10,7 +10,7 @@ export default async function Aufgaben() {
     lumiva.aufgaben.liste(),
     lumiva.aufgaben.liste({ erledigt: true }),
   ]);
-  const heute = new Date().toISOString().slice(0, 10);
+  const heute = datumIso(new Date());
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <h1 className="font-semibold text-3xl tracking-tight">Aufgaben</h1>

@@ -27,8 +27,7 @@ const t = initTRPC.context<Kontext>().create({
     const intern = error.code === "INTERNAL_SERVER_ERROR";
     return {
       ...shape,
-      // Unerwartete Fehler können Werte aus der Datenbank enthalten: Meldung nie weitergeben.
-      message: intern ? "Interner Fehler." : shape.message,
+      message: nutzerMeldung(error),
       data: {
         ...shape.data,
         stack: intern ? undefined : shape.data.stack,
@@ -38,6 +37,21 @@ const t = initTRPC.context<Kontext>().create({
     };
   },
 });
+
+/**
+ * Meldung für die Oberfläche. Unerwartete Fehler können Werte aus der Datenbank enthalten
+ * und werden nie weitergegeben; Eingabefehler nur mit Feldname und Regel, nie mit dem Wert.
+ */
+export function nutzerMeldung(error: TRPCError): string {
+  if (error.code === "INTERNAL_SERVER_ERROR")
+    return "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
+  if (error.cause instanceof ZodError) {
+    const erstes = error.cause.issues[0];
+    const feld = erstes?.path.length ? erstes.path.join(".") : "Eingabe";
+    return `${feld}: ${erstes?.message ?? "ungültig"}`;
+  }
+  return error.message;
+}
 
 export const router = t.router;
 export const createCallerFactory = t.createCallerFactory;
@@ -60,6 +74,14 @@ export const inPraxis = angemeldet.use(({ ctx, next }) => {
 export const therapeutisch = inPraxis.use(({ ctx, next }) => {
   if (ctx.praxis.rolle === "assistenz") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung für Akteninhalte." });
+  }
+  return next();
+});
+
+/** Darf Praxisdaten und Honorare ändern: nur die Inhaber:in. */
+export const inhaberIn = inPraxis.use(({ ctx, next }) => {
+  if (ctx.praxis.rolle !== "inhaber") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Nur die Inhaber:in ändert Praxisdaten." });
   }
   return next();
 });

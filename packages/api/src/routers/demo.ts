@@ -1,5 +1,5 @@
 import { schema } from "@lumiva/db";
-import { tageAddieren, wienZuDate, wochenBeginn } from "@lumiva/domain";
+import { tageAddieren, wienDatum, wienZuDate, wochenBeginn } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
 import { and, count, eq } from "drizzle-orm";
 import { router, therapeutisch } from "../trpc";
@@ -81,8 +81,6 @@ const VERLAUF = [
   "Ressourcenarbeit, Stimmung stabiler. Nächste Sitzung: Umgang mit Rückfällen.",
 ];
 
-const TAG = 24 * 60 * 60_000;
-
 export const demoRouter = router({
   /** Legt Beispielpatient:innen mit Terminen, Doku und Aufgaben an, damit man LUMIVA sofort ausprobieren kann. */
   laden: therapeutisch.mutation(async ({ ctx }) => {
@@ -138,8 +136,8 @@ export const demoRouter = router({
             }),
           ),
           versicherungstraeger: p.traeger,
-          aerztlicheBestaetigungAm: p.sitzungen > 1 ? dabeiSeit.toISOString().slice(0, 10) : null,
-          bewilligungAm: p.sitzungen > 9 ? dabeiSeit.toISOString().slice(0, 10) : null,
+          aerztlicheBestaetigungAm: p.sitzungen > 1 ? wienDatum(dabeiSeit) : null,
+          bewilligungAm: p.sitzungen > 9 ? wienDatum(dabeiSeit) : null,
         });
 
         // Vergangene Sitzungen (erledigt) und vier künftige, wöchentlich am selben Tag.
@@ -188,7 +186,7 @@ export const demoRouter = router({
             zustaendigId: ctx.benutzer.id,
             patientId: id,
             titel: "Ärztliche Bestätigung vor der 2. Sitzung anfordern",
-            faelligAm: new Date(heute.getTime() + 2 * TAG).toISOString().slice(0, 10),
+            faelligAm: tageAddieren(datum, 2),
           });
         }
       }
@@ -197,13 +195,13 @@ export const demoRouter = router({
           praxisId: ctx.praxis.id,
           zustaendigId: ctx.benutzer.id,
           titel: "Honorarnoten für Oktober ausstellen",
-          faelligAm: new Date(heute.getTime() + TAG).toISOString().slice(0, 10),
+          faelligAm: tageAddieren(datum, 1),
         },
         {
           praxisId: ctx.praxis.id,
           zustaendigId: ctx.benutzer.id,
           titel: "Supervision vorbereiten",
-          faelligAm: new Date(heute.getTime() + 5 * TAG).toISOString().slice(0, 10),
+          faelligAm: tageAddieren(datum, 5),
         },
       ]);
     });

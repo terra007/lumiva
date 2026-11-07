@@ -1,4 +1,5 @@
 "use server";
+import { nutzerMeldung } from "@lumiva/api";
 import { wienZuDate } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
 import { revalidatePath } from "next/cache";
@@ -32,19 +33,13 @@ function fehlertext(e: unknown): string | null {
         : "Eingabe";
       return `${feld}: ${erstes?.message ?? "ungültig"}`;
     }
-    // Unerwartete Fehler (z. B. aus der Datenbank) können Werte enthalten: nie anzeigen.
-    if (e.code === "INTERNAL_SERVER_ERROR")
-      return "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
-    return e.message;
+    return nutzerMeldung(e);
   }
   return null;
 }
 
 /** Führt eine Änderung aus und übersetzt erwartbare Fehler in eine Meldung fürs Formular. */
-async function ausfuehren(
-  fn: () => Promise<unknown>,
-  pfade: string[] = ["/", "layout"],
-): Promise<Ergebnis> {
+async function ausfuehren(fn: () => Promise<unknown>): Promise<Ergebnis> {
   try {
     await fn();
   } catch (e) {
@@ -52,10 +47,7 @@ async function ausfuehren(
     if (text) return { fehler: text };
     throw e;
   }
-  for (const p of pfade) {
-    if (p === "layout") revalidatePath("/", "layout");
-    else revalidatePath(p);
-  }
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 

@@ -8,6 +8,16 @@ export const SITZUNG_BEWILLIGUNG = 11;
 
 export type Versicherungstraeger = "oegk" | "bvaeb" | "svs" | "kfa" | "privat" | "sonstige";
 
+/** Anzeigenamen der Versicherungsträger für Oberfläche, App und Honorarnote. */
+export const TRAEGER_NAME: Record<string, string> = {
+  oegk: "ÖGK",
+  bvaeb: "BVAEB",
+  svs: "SVS",
+  kfa: "KFA",
+  privat: "Selbstzahler:in",
+  sonstige: "Sonstige",
+} satisfies Record<Versicherungstraeger, string>;
+
 export type KostenzuschussStand = {
   versicherungstraeger: Versicherungstraeger;
   /** Nummer der Sitzung, die geplant wird (1 = Erstgespräch). */

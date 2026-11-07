@@ -20,6 +20,16 @@ export function decOpt(
   return wert === null ? null : dec(p, feld, id, wert);
 }
 
+/** Vor- und Nachname einer Patient:in aus den verschlüsselten Spalten. */
+export function patientName(
+  p: PraxisZugang,
+  patientId: string,
+  vornameEnc: string,
+  nachnameEnc: string,
+): string {
+  return `${dec(p, "patienten.vorname", patientId, vornameEnc)} ${dec(p, "patienten.nachname", patientId, nachnameEnc)}`;
+}
+
 /** Schreibt einen Eintrag ins Zugriffsprotokoll. Nie Gesundheitsdaten in details schreiben. */
 export async function protokollieren(
   ctx: Pick<Kontext, "db"> & { praxis: PraxisZugang; benutzer: { id: string } },

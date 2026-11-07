@@ -1,6 +1,6 @@
 import { schema } from "@lumiva/db";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { patientLaden } from "../sichtbarkeit";
 import { router, therapeutisch } from "../trpc";
@@ -9,21 +9,19 @@ import { dec, decOpt, enc, protokollieren } from "../werkzeuge";
 const ICD10 = /^[A-Z]\d{2}(\.\d{1,2})?$/;
 
 export async function letzteDiagnose(ctx: Parameters<typeof patientLaden>[0], patientId: string) {
-  const zeilen = await ctx.db
+  const [z] = await ctx.db
     .select({ id: schema.dokuEintraege.id, diagnoseEnc: schema.dokuEintraege.diagnoseIcd10Enc })
     .from(schema.dokuEintraege)
     .where(
       and(
         eq(schema.dokuEintraege.praxisId, ctx.praxis.id),
         eq(schema.dokuEintraege.patientId, patientId),
+        isNotNull(schema.dokuEintraege.diagnoseIcd10Enc),
       ),
     )
-    .orderBy(desc(schema.dokuEintraege.erstelltAm));
-  for (const z of zeilen) {
-    const d = decOpt(ctx.praxis, "doku_eintraege.diagnose_icd10", z.id, z.diagnoseEnc);
-    if (d) return d;
-  }
-  return null;
+    .orderBy(desc(schema.dokuEintraege.erstelltAm))
+    .limit(1);
+  return z ? decOpt(ctx.praxis, "doku_eintraege.diagnose_icd10", z.id, z.diagnoseEnc) : null;
 }
 
 export const dokuRouter = router({

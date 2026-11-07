@@ -1,4 +1,6 @@
+import { nutzerMeldung } from "@lumiva/api";
 import { TRPCError } from "@trpc/server";
+import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 import { praxisApi } from "@/server/lumiva";
 
 export async function GET(_req: Request, { params }: RouteContext<"/honorarnoten/[id]/pdf">) {
@@ -14,7 +16,7 @@ export async function GET(_req: Request, { params }: RouteContext<"/honorarnoten
     });
   } catch (e) {
     if (e instanceof TRPCError)
-      return new Response(e.message, { status: e.code === "NOT_FOUND" ? 404 : 403 });
+      return new Response(nutzerMeldung(e), { status: getHTTPStatusCodeFromError(e) });
     throw e;
   }
 }
