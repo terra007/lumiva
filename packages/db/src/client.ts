@@ -13,7 +13,8 @@ import * as schema from "./schema";
 export type Datenbank = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 // Als Funktion mit variablem Pfad, damit Bundler (Next.js) den Ordner nicht als Asset auflösen wollen.
-const standardMigrationen = () => path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "drizzle");
+const standardMigrationen = () =>
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "drizzle");
 
 export type Verbindung =
   /** Produktiv: PostgreSQL-Server (in der EU gehostet). */

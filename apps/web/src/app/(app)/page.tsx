@@ -18,9 +18,7 @@ export default async function Uebersicht() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
         <p className="text-muted text-sm">{formatDatumLang(new Date())}</p>
-        <h1 className="font-semibold text-3xl tracking-tight">
-          Guten Tag, {ich.benutzer?.name}
-        </h1>
+        <h1 className="font-semibold text-3xl tracking-tight">Guten Tag, {ich.benutzer?.name}</h1>
       </header>
 
       {leer && ich.praxis?.rolle !== "assistenz" && (
