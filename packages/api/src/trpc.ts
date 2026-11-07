@@ -24,10 +24,14 @@ export type Kontext = {
 const t = initTRPC.context<Kontext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    const intern = error.code === "INTERNAL_SERVER_ERROR";
     return {
       ...shape,
+      // Unerwartete Fehler können Werte aus der Datenbank enthalten: Meldung nie weitergeben.
+      message: intern ? "Interner Fehler." : shape.message,
       data: {
         ...shape.data,
+        stack: intern ? undefined : shape.data.stack,
         // Nur Feldnamen und Meldungen, nie die eingegebenen Werte zurückgeben.
         felder: error.cause instanceof ZodError ? error.cause.flatten().fieldErrors : null,
       },

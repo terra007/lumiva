@@ -111,6 +111,22 @@ describe("LUMIVA-API", () => {
     await api.honorarnoten.stornieren({ id: note.id });
     expect(await api.honorarnoten.offen({ patientId })).toHaveLength(1);
 
+    // Serien behalten die Wiener Uhrzeit über die Zeitumstellung (25.10.2026).
+    await api.termine.anlegen({
+      patientId,
+      sitzungsartId: einzel?.id ?? "",
+      beginn: new Date("2026-10-19T08:00:00Z"), // 10:00 Sommerzeit
+      anzahl: 2,
+    });
+    const serie = await api.termine.zeitraum({
+      von: new Date("2026-10-19"),
+      bis: new Date("2026-10-27"),
+    });
+    expect(serie.map((t) => t.beginn.toISOString())).toEqual([
+      "2026-10-19T08:00:00.000Z",
+      "2026-10-26T09:00:00.000Z", // weiterhin 10:00, jetzt Winterzeit
+    ]);
+
     const uebersicht = await api.uebersicht.heute();
     expect(uebersicht.aktivePatienten).toBe(1);
   });
@@ -131,6 +147,10 @@ describe("LUMIVA-API", () => {
     const [patient] = await apiAssistenz.patienten.liste();
     expect(patient?.nachname).toBe("Berger");
     await expect(apiAssistenz.doku.liste({ patientId: patient?.id ?? "" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    const [note] = await apiAssistenz.honorarnoten.liste();
+    await expect(apiAssistenz.honorarnoten.pdf({ id: note?.id ?? "" })).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
     await expect(apiFremd.patienten.details({ id: patient?.id ?? "" })).rejects.toMatchObject({

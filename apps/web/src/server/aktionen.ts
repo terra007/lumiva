@@ -32,6 +32,9 @@ function fehlertext(e: unknown): string | null {
         : "Eingabe";
       return `${feld}: ${erstes?.message ?? "ungültig"}`;
     }
+    // Unerwartete Fehler (z. B. aus der Datenbank) können Werte enthalten: nie anzeigen.
+    if (e.code === "INTERNAL_SERVER_ERROR")
+      return "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
     return e.message;
   }
   return null;

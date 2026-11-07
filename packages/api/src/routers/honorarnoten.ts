@@ -10,15 +10,15 @@ import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { honorarnotePdf } from "../pdf";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
-import { inPraxis, router } from "../trpc";
+import { inPraxis, router, therapeutisch } from "../trpc";
 import { dec, decOpt, enc, protokollieren } from "../werkzeuge";
 import { letzteDiagnose } from "./doku";
 
 type Ctx = Parameters<typeof patientLaden>[0];
 
 /** Erledigte oder ausgefallene Termine mit Honorar, die auf keiner gültigen Honorarnote stehen. */
-async function offeneTermine(ctx: Ctx, patientId: string) {
-  const termine = await ctx.db
+async function offeneTermine(ctx: Ctx, patientId: string, db: Ctx["db"] = ctx.db) {
+  const termine = await db
     .select({ termin: schema.termine, sitzungsart: schema.sitzungsarten.name })
     .from(schema.termine)
     .leftJoin(schema.sitzungsarten, eq(schema.sitzungsarten.id, schema.termine.sitzungsartId))
@@ -31,7 +31,7 @@ async function offeneTermine(ctx: Ctx, patientId: string) {
     )
     .orderBy(asc(schema.termine.beginn));
   if (termine.length === 0) return [];
-  const abgerechnet = await ctx.db
+  const abgerechnet = await db
     .select({ terminId: schema.honorarnotePositionen.terminId })
     .from(schema.honorarnotePositionen)
     .innerJoin(
@@ -114,7 +114,8 @@ export const honorarnotenRouter = router({
       }));
     }),
 
-  ausstellen: inPraxis
+  // Die Honorarnote für den Kostenzuschuss enthält die Diagnose, daher nur therapeutisch.
+  ausstellen: therapeutisch
     .input(z.object({ patientId: z.uuid(), terminIds: z.array(z.uuid()).min(1).max(60) }))
     .mutation(async ({ ctx, input }) => {
       const patient = await patientLaden(ctx, input.patientId);
@@ -180,8 +181,7 @@ export const honorarnotenRouter = router({
           versicherungstraeger: patient.versicherungstraeger,
           anschrift: kontakt.anschrift || null,
         },
-        diagnoseIcd10:
-          ctx.praxis.rolle === "assistenz" ? null : await letzteDiagnose(ctx, patient.id),
+        diagnoseIcd10: await letzteDiagnose(ctx, patient.id),
         sitzungen: gewaehlt.map((t) => ({
           datum: wienDatum(t.beginn),
           dauerMinuten: t.dauerMinuten,
@@ -199,6 +199,20 @@ export const honorarnotenRouter = router({
       }
 
       const nummer = await ctx.db.transaction(async (tx) => {
+        // Patient:in sperren und erneut prüfen, damit gleichzeitige Anfragen (Doppelklick)
+        // denselben Termin nicht zweimal abrechnen.
+        await tx
+          .select({ id: schema.patienten.id })
+          .from(schema.patienten)
+          .where(eq(schema.patienten.id, patient.id))
+          .for("update");
+        const nochOffen = new Set((await offeneTermine(ctx, patient.id, tx)).map((t) => t.id));
+        if (!gewaehlt.every((t) => nochOffen.has(t.id))) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Ein Termin ist nicht (mehr) abrechenbar.",
+          });
+        }
         const laufend = await naechsteHonorarnoteNummer(tx, ctx.praxis.id, jahr);
         const inhalt: HonorarnoteInhalt = {
           ...entwurf,
@@ -241,7 +255,7 @@ export const honorarnotenRouter = router({
       await protokollieren(ctx, "bezahlt", "honorarnote", note.id, { bezahlt: input.am !== null });
     }),
 
-  stornieren: inPraxis.input(z.object({ id: z.uuid() })).mutation(async ({ ctx, input }) => {
+  stornieren: therapeutisch.input(z.object({ id: z.uuid() })).mutation(async ({ ctx, input }) => {
     const { note } = await noteLaden(ctx, input.id);
     if (note.storniertAm) return;
     await ctx.db
@@ -252,7 +266,7 @@ export const honorarnotenRouter = router({
   }),
 
   /** PDF als Base64, damit es über JSON (Web und App) transportiert werden kann. */
-  pdf: inPraxis.input(z.object({ id: z.uuid() })).query(async ({ ctx, input }) => {
+  pdf: therapeutisch.input(z.object({ id: z.uuid() })).query(async ({ ctx, input }) => {
     const { note, inhalt } = await noteLaden(ctx, input.id);
     const bytes = await honorarnotePdf(inhalt, {
       bezahltAm: note.bezahltAm,

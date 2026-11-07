@@ -10,6 +10,28 @@ const TRAEGER: Record<string, string> = {
   sonstige: "Sonstige",
 };
 
+// Zeichen, die Helvetica (WinAnsi) zusätzlich zu Latin-1 darstellen kann.
+const WIN_ANSI_EXTRA = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ");
+const ERSATZ: Record<string, string> = { ł: "l", Ł: "L", đ: "d", Đ: "D", ı: "i", ħ: "h", Ħ: "H" };
+
+/**
+ * Macht Text für die Standardschrift druckbar: z. B. "Kovačević" wird "Kovacevic".
+ * Ohne das wirft pdf-lib bei Namen mit Zeichen außerhalb von WinAnsi.
+ */
+export function druckbar(t: string): string {
+  let aus = "";
+  for (const z of t) {
+    const code = z.codePointAt(0) ?? 0;
+    if ((code >= 0x20 && code <= 0x7e) || (code >= 0xa0 && code <= 0xff) || WIN_ANSI_EXTRA.has(z)) {
+      aus += z;
+      continue;
+    }
+    const ohneAkzent = (ERSATZ[z] ?? z).normalize("NFD").replace(/\p{M}/gu, "");
+    aus += [...ohneAkzent].every((c) => (c.codePointAt(0) ?? 0) <= 0xff) ? ohneAkzent : "?";
+  }
+  return aus;
+}
+
 function datum(iso: string) {
   const [j, m, t] = iso.split("-");
   return `${t}.${m}.${j}`;
@@ -24,21 +46,29 @@ export async function honorarnotePdf(
   doc.setTitle(`Honorarnote ${n.nummer}`);
   doc.setAuthor(n.praxis.name);
   doc.setCreator("LUMIVA");
-  const seite = doc.addPage([595.28, 841.89]);
+  const FORMAT: [number, number] = [595.28, 841.89];
+  const OBEN = 790;
+  let seite = doc.addPage(FORMAT);
   const schrift = await doc.embedFont(StandardFonts.Helvetica);
   const fett = await doc.embedFont(StandardFonts.HelveticaBold);
   const dunkel = rgb(0.11, 0.14, 0.19);
   const grau = rgb(0.36, 0.39, 0.45);
   const links = 56;
   const rechts = 539;
-  let y = 790;
+  let y = OBEN;
+  /** Neue Seite, wenn unten weniger als `hoehe` Punkte frei sind. */
+  const platz = (hoehe: number) => {
+    if (y - hoehe >= 60) return;
+    seite = doc.addPage(FORMAT);
+    y = OBEN;
+  };
 
   const text = (
     t: string,
     x: number,
     opts: { groesse?: number; bold?: boolean; farbe?: typeof dunkel } = {},
   ) =>
-    seite.drawText(t, {
+    seite.drawText(druckbar(t), {
       x,
       y,
       size: opts.groesse ?? 10,
@@ -50,7 +80,7 @@ export async function honorarnotePdf(
     xRechts: number,
     opts: { groesse?: number; bold?: boolean } = {},
   ) => {
-    const breite = (opts.bold ? fett : schrift).widthOfTextAtSize(t, opts.groesse ?? 10);
+    const breite = (opts.bold ? fett : schrift).widthOfTextAtSize(druckbar(t), opts.groesse ?? 10);
     text(t, xRechts - breite, opts);
   };
   const zeile = () => {
@@ -119,12 +149,14 @@ export async function honorarnotePdf(
   y -= 6;
   zeile();
   for (const s of n.sitzungen) {
+    platz(16);
     y -= 16;
     text(datum(s.datum), links);
     text(s.bezeichnung, links + 80);
     rechtsbuendig(`${s.dauerMinuten} Min.`, links + 380);
     rechtsbuendig(formatEuro(s.honorarCent), rechts);
   }
+  platz(120);
   y -= 8;
   zeile();
   y -= 14;
@@ -158,7 +190,10 @@ export async function honorarnotePdf(
     });
   }
 
-  // Unterschrift
+  // Unterschrift unten auf der letzten Seite
+  if (y < 160) {
+    seite = doc.addPage(FORMAT);
+  }
   y = 120;
   seite.drawLine({
     start: { x: rechts - 200, y },

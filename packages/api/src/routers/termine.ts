@@ -1,4 +1,5 @@
 import { schema } from "@lumiva/db";
+import { tageAddieren, wienDatum, wienZeit, wienZuDate } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
@@ -108,8 +109,11 @@ export const termineRouter = router({
         );
       if (!art) throw new TRPCError({ code: "NOT_FOUND", message: "Sitzungsart nicht gefunden." });
       const serieId = input.anzahl > 1 ? crypto.randomUUID() : null;
+      // Wöchentlich nach Wiener Kalender, damit die Uhrzeit über die Zeitumstellung gleich bleibt.
+      const startDatum = wienDatum(input.beginn);
+      const startZeit = wienZeit(input.beginn);
       const werte = Array.from({ length: input.anzahl }, (_, i) => {
-        const beginn = new Date(input.beginn.getTime() + i * 7 * 24 * 60 * MINUTE);
+        const beginn = wienZuDate(tageAddieren(startDatum, i * 7), startZeit);
         return {
           praxisId: ctx.praxis.id,
           patientId: patient.id,

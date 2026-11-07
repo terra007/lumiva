@@ -1,3 +1,4 @@
+import { wienDatum } from "@lumiva/domain";
 import Link from "next/link";
 import { AktionsKnopf } from "@/components/formular";
 import { NotenStatus } from "@/components/noten-status";
@@ -6,8 +7,11 @@ import { honorarnoteBezahlt, honorarnoteStornieren } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
 
 export default async function Honorarnoten() {
-  const noten = await (await praxisApi()).honorarnoten.liste();
-  const heute = new Date().toISOString().slice(0, 10);
+  const api = await praxisApi();
+  const [noten, ich] = await Promise.all([api.honorarnoten.liste(), api.praxis.ich()]);
+  // Die PDF enthält die Diagnose; die Assistenz sieht keine Akteninhalte (§ 45 PThG 2024).
+  const therapeutisch = ich.praxis?.rolle !== "assistenz";
+  const heute = wienDatum(new Date());
   const offen = noten.filter((n) => !n.bezahltAm && !n.storniertAm);
   return (
     <div className="flex flex-col gap-6">
@@ -37,14 +41,18 @@ export default async function Honorarnoten() {
               {noten.map((n) => (
                 <tr key={n.id}>
                   <td className="px-5 py-3 tabular-nums">
-                    <a
-                      href={`/honorarnoten/${n.id}/pdf`}
-                      target="_blank"
-                      rel="noopener"
-                      className="verweis"
-                    >
-                      {n.nummer}
-                    </a>
+                    {therapeutisch ? (
+                      <a
+                        href={`/honorarnoten/${n.id}/pdf`}
+                        target="_blank"
+                        rel="noopener"
+                        className="verweis"
+                      >
+                        {n.nummer}
+                      </a>
+                    ) : (
+                      n.nummer
+                    )}
                   </td>
                   <td className="px-5 py-3">
                     <Link href={`/patienten/${n.patientId}`} className="verweis">
@@ -61,14 +69,16 @@ export default async function Honorarnoten() {
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex justify-end gap-2">
-                      <a
-                        href={`/honorarnoten/${n.id}/pdf`}
-                        target="_blank"
-                        rel="noopener"
-                        className="knopf-zweit"
-                      >
-                        PDF
-                      </a>
+                      {therapeutisch && (
+                        <a
+                          href={`/honorarnoten/${n.id}/pdf`}
+                          target="_blank"
+                          rel="noopener"
+                          className="knopf-zweit"
+                        >
+                          PDF
+                        </a>
+                      )}
                       {!n.storniertAm &&
                         (n.bezahltAm ? (
                           <AktionsKnopf
@@ -83,7 +93,7 @@ export default async function Honorarnoten() {
                             text="Bezahlt"
                           />
                         ))}
-                      {!n.storniertAm && (
+                      {therapeutisch && !n.storniertAm && (
                         <AktionsKnopf
                           aktion={honorarnoteStornieren}
                           felder={{ id: n.id }}

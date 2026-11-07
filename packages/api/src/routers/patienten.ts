@@ -1,5 +1,10 @@
 import { schema } from "@lumiva/db";
-import { istGueltigeSvNummer, kostenzuschussHinweise, loeschbarAb } from "@lumiva/domain";
+import {
+  istGueltigeSvNummer,
+  kostenzuschussHinweise,
+  loeschbarAb,
+  wienDatum,
+} from "@lumiva/domain";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
@@ -195,9 +200,7 @@ export const patientenRouter = router({
     .mutation(async ({ ctx, input }) => {
       await patientLaden(ctx, input.id);
       const ende =
-        input.status === "abgeschlossen"
-          ? (input.behandlungsende ?? new Date().toISOString().slice(0, 10))
-          : null;
+        input.status === "abgeschlossen" ? (input.behandlungsende ?? wienDatum(new Date())) : null;
       await ctx.db
         .update(schema.patienten)
         .set({
