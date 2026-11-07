@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794065553025,
+      "tag": "0000_grundschema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794071341767,
+      "tag": "0001_ki_einwilligung",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794082929499,
+      "tag": "0002_doku_papierkorb_transkript",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794084205098,
+      "tag": "0003_sumup_zahlungen",
+      "breakpoints": true
+    }
+  ]
+}

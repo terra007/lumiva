@@ -1,0 +1,1 @@
+ALTER TABLE "patienten" ADD COLUMN "ki_aufnahme_einwilligung_am" date;

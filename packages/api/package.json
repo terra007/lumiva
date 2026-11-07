@@ -1,0 +1,31 @@
+{
+  "name": "@lumiva/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ki": "./src/ki.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@better-auth/expo": "1.7.18",
+    "@lumiva/db": "workspace:*",
+    "@lumiva/domain": "workspace:*",
+    "@trpc/server": "11.25.0",
+    "better-auth": "1.7.18",
+    "pdf-lib": "1.17.1",
+    "qrcode": "1.5.4",
+    "superjson": "2.2.6",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/qrcode": "1.5.5",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}
