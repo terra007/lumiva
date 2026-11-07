@@ -70,7 +70,13 @@ export function summeCent(note: Pick<KostenzuschussHonorarnote, "sitzungen">): n
 export type HonorarnoteInhalt = {
   nummer: string;
   ausstellungsdatum: string;
-  praxis: { name: string; anschrift: string; telefon: string | null; email: string | null; iban: string | null };
+  praxis: {
+    name: string;
+    anschrift: string;
+    telefon: string | null;
+    email: string | null;
+    iban: string | null;
+  };
   therapeut: { name: string; berufsbezeichnung: string | null };
   patient: {
     vorname: string;

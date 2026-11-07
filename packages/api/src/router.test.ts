@@ -55,9 +55,21 @@ describe("LUMIVA-API", () => {
     const [roh] = await db.select().from(schema.patienten);
     expect(roh?.nachnameEnc).not.toContain("Berger");
 
-    await api.termine.anlegen({ patientId, sitzungsartId: einzel?.id ?? "", beginn: new Date("2026-11-02T08:00:00Z"), anzahl: 3 });
-    const termine = await api.termine.zeitraum({ von: new Date("2026-11-01"), bis: new Date("2026-11-30") });
-    expect(termine.map((t) => t.patientName)).toEqual(["Anna Berger", "Anna Berger", "Anna Berger"]);
+    await api.termine.anlegen({
+      patientId,
+      sitzungsartId: einzel?.id ?? "",
+      beginn: new Date("2026-11-02T08:00:00Z"),
+      anzahl: 3,
+    });
+    const termine = await api.termine.zeitraum({
+      von: new Date("2026-11-01"),
+      bis: new Date("2026-11-30"),
+    });
+    expect(termine.map((t) => t.patientName)).toEqual([
+      "Anna Berger",
+      "Anna Berger",
+      "Anna Berger",
+    ]);
     const [erster] = termine;
     await api.termine.status({ id: erster?.id ?? "", status: "erledigt" });
 
@@ -66,15 +78,26 @@ describe("LUMIVA-API", () => {
     expect(details.hinweise).toEqual([{ art: "aerztliche-bestaetigung-fehlt" }]);
 
     // Ohne Diagnose keine Honorarnote für den Kostenzuschuss.
-    await expect(api.honorarnoten.ausstellen({ patientId, terminIds: [erster?.id ?? ""] })).rejects.toMatchObject({
+    await expect(
+      api.honorarnoten.ausstellen({ patientId, terminIds: [erster?.id ?? ""] }),
+    ).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
     });
-    await api.doku.anlegen({ patientId, terminId: erster?.id, art: "erstgespraech", inhalt: "Erstgespräch", diagnoseIcd10: "f32.1" });
+    await api.doku.anlegen({
+      patientId,
+      terminId: erster?.id,
+      art: "erstgespraech",
+      inhalt: "Erstgespräch",
+      diagnoseIcd10: "f32.1",
+    });
     expect((await api.doku.liste({ patientId }))[0]?.diagnoseIcd10).toBe("F32.1");
 
     const offen = await api.honorarnoten.offen({ patientId });
     expect(offen).toHaveLength(1);
-    const note = await api.honorarnoten.ausstellen({ patientId, terminIds: offen.map((o) => o.id) });
+    const note = await api.honorarnoten.ausstellen({
+      patientId,
+      terminIds: offen.map((o) => o.id),
+    });
     expect(note.nummer).toMatch(/^\d{4}-0001$/);
     expect(await api.honorarnoten.offen({ patientId })).toHaveLength(0);
 
@@ -82,7 +105,9 @@ describe("LUMIVA-API", () => {
     expect(Buffer.from(pdf.base64, "base64").subarray(0, 4).toString()).toBe("%PDF");
 
     // Abgerechnete Termine lassen sich nicht mehr umstellen; nach Storno wieder abrechenbar.
-    await expect(api.termine.status({ id: erster?.id ?? "", status: "abgesagt" })).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      api.termine.status({ id: erster?.id ?? "", status: "abgesagt" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
     await api.honorarnoten.stornieren({ id: note.id });
     expect(await api.honorarnoten.offen({ patientId })).toHaveLength(1);
 
@@ -99,12 +124,18 @@ describe("LUMIVA-API", () => {
 
     const [maria] = await db.select().from(schema.mitgliedschaften);
     const assistenz = await benutzerAnlegen("assistenz", "Alex Assistenz");
-    await db.insert(schema.mitgliedschaften).values({ praxisId: maria?.praxisId ?? "", benutzerId: assistenz.id, rolle: "assistenz" });
+    await db
+      .insert(schema.mitgliedschaften)
+      .values({ praxisId: maria?.praxisId ?? "", benutzerId: assistenz.id, rolle: "assistenz" });
     const apiAssistenz = createCaller(await kontextFuer(assistenz));
     const [patient] = await apiAssistenz.patienten.liste();
     expect(patient?.nachname).toBe("Berger");
-    await expect(apiAssistenz.doku.liste({ patientId: patient?.id ?? "" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(apiFremd.patienten.details({ id: patient?.id ?? "" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(apiAssistenz.doku.liste({ patientId: patient?.id ?? "" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(apiFremd.patienten.details({ id: patient?.id ?? "" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 
   it("legt Demo-Daten an", async () => {

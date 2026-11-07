@@ -1,4 +1,5 @@
 import { schema } from "@lumiva/db";
+import { tageAddieren, wienZuDate, wochenBeginn } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
 import { and, count, eq } from "drizzle-orm";
 import { router, therapeutisch } from "../trpc";
@@ -6,12 +7,72 @@ import { enc, protokollieren } from "../werkzeuge";
 import { heuteInWien } from "./uebersicht";
 
 const PERSONEN = [
-  { vorname: "Anna", nachname: "Berger", geburtsdatum: "1988-04-12", sv: "1237010180", traeger: "oegk", diagnose: "F32.1", stunde: 9, wochentag: 1, sitzungen: 6 },
-  { vorname: "Lukas", nachname: "Hofer", geburtsdatum: "1979-09-30", sv: "", traeger: "privat", diagnose: "F43.2", stunde: 10, wochentag: 1, sitzungen: 3 },
-  { vorname: "Sophie", nachname: "Wagner", geburtsdatum: "1995-01-22", sv: "1237010180", traeger: "bvaeb", diagnose: "F41.1", stunde: 14, wochentag: 2, sitzungen: 9 },
-  { vorname: "Elias", nachname: "Gruber", geburtsdatum: "2001-06-05", sv: "1237010180", traeger: "oegk", diagnose: "F40.1", stunde: 9, wochentag: 3, sitzungen: 1 },
-  { vorname: "Marie", nachname: "Pichler", geburtsdatum: "1969-11-17", sv: "1237010180", traeger: "svs", diagnose: "F33.0", stunde: 16, wochentag: 4, sitzungen: 4 },
-  { vorname: "Jonas", nachname: "Steiner", geburtsdatum: "1990-03-08", sv: "1237010180", traeger: "oegk", diagnose: "F42.1", stunde: 11, wochentag: 5, sitzungen: 10 },
+  {
+    vorname: "Anna",
+    nachname: "Berger",
+    geburtsdatum: "1988-04-12",
+    sv: "1237010180",
+    traeger: "oegk",
+    diagnose: "F32.1",
+    stunde: 9,
+    wochentag: 1,
+    sitzungen: 6,
+  },
+  {
+    vorname: "Lukas",
+    nachname: "Hofer",
+    geburtsdatum: "1979-09-30",
+    sv: "",
+    traeger: "privat",
+    diagnose: "F43.2",
+    stunde: 10,
+    wochentag: 1,
+    sitzungen: 3,
+  },
+  {
+    vorname: "Sophie",
+    nachname: "Wagner",
+    geburtsdatum: "1995-01-22",
+    sv: "1237010180",
+    traeger: "bvaeb",
+    diagnose: "F41.1",
+    stunde: 14,
+    wochentag: 2,
+    sitzungen: 9,
+  },
+  {
+    vorname: "Elias",
+    nachname: "Gruber",
+    geburtsdatum: "2001-06-05",
+    sv: "1237010180",
+    traeger: "oegk",
+    diagnose: "F40.1",
+    stunde: 9,
+    wochentag: 3,
+    sitzungen: 1,
+  },
+  {
+    vorname: "Marie",
+    nachname: "Pichler",
+    geburtsdatum: "1969-11-17",
+    sv: "1237010180",
+    traeger: "svs",
+    diagnose: "F33.0",
+    stunde: 16,
+    wochentag: 4,
+    sitzungen: 4,
+  },
+  {
+    vorname: "Jonas",
+    nachname: "Steiner",
+    geburtsdatum: "1990-03-08",
+    sv: "1237010180",
+    traeger: "oegk",
+    diagnose: "F42.1",
+    stunde: 11,
+    wochentag: 5,
+    sitzungen: 10,
+  },
 ] as const;
 
 const VERLAUF = [
@@ -28,7 +89,12 @@ export const demoRouter = router({
     const [vorhanden] = await ctx.db
       .select({ anzahl: count() })
       .from(schema.patienten)
-      .where(and(eq(schema.patienten.praxisId, ctx.praxis.id), eq(schema.patienten.therapeutId, ctx.benutzer.id)));
+      .where(
+        and(
+          eq(schema.patienten.praxisId, ctx.praxis.id),
+          eq(schema.patienten.therapeutId, ctx.benutzer.id),
+        ),
+      );
     if ((vorhanden?.anzahl ?? 0) > 0) {
       throw new TRPCError({ code: "CONFLICT", message: "Demo-Daten nur in einer leeren Praxis." });
     }
@@ -37,16 +103,22 @@ export const demoRouter = router({
       .from(schema.sitzungsarten)
       .where(eq(schema.sitzungsarten.praxisId, ctx.praxis.id));
     const einzel = arten.find((a) => a.name === "Einzelsitzung") ?? arten[0];
-    if (!einzel) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Keine Sitzungsart vorhanden." });
+    if (!einzel)
+      throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Keine Sitzungsart vorhanden." });
 
-    const { von: heute } = heuteInWien();
-    const wochentagHeute = new Date(heute.getTime() + 12 * 60 * 60_000).getUTCDay() || 7;
-    const montag = new Date(heute.getTime() - (wochentagHeute - 1) * TAG);
+    const { datum, von: heute } = heuteInWien();
+    const montagDatum = wochenBeginn(datum);
+    /** Zeitpunkt in Wien: Woche w relativ zu dieser, Wochentag 1–7, Stunde. */
+    const zeitpunkt = (w: number, wochentag: number, stunde: number) =>
+      wienZuDate(
+        tageAddieren(montagDatum, w * 7 + wochentag - 1),
+        `${String(stunde).padStart(2, "0")}:00`,
+      );
 
     await ctx.db.transaction(async (tx) => {
       for (const p of PERSONEN) {
         const id = crypto.randomUUID();
-        const dabeiSeit = new Date(montag.getTime() - p.sitzungen * 7 * TAG);
+        const dabeiSeit = zeitpunkt(-p.sitzungen, 1, 12);
         await tx.insert(schema.patienten).values({
           id,
           praxisId: ctx.praxis.id,
@@ -59,7 +131,11 @@ export const demoRouter = router({
             ctx.praxis,
             "patienten.kontakt",
             id,
-            JSON.stringify({ telefon: "+43 660 1234567", email: "", anschrift: "Musterstraße 1, 1010 Wien" }),
+            JSON.stringify({
+              telefon: "+43 660 1234567",
+              email: "",
+              anschrift: "Musterstraße 1, 1010 Wien",
+            }),
           ),
           versicherungstraeger: p.traeger,
           aerztlicheBestaetigungAm: p.sitzungen > 1 ? dabeiSeit.toISOString().slice(0, 10) : null,
@@ -69,7 +145,7 @@ export const demoRouter = router({
         // Vergangene Sitzungen (erledigt) und vier künftige, wöchentlich am selben Tag.
         const termine = [];
         for (let w = -p.sitzungen; w < 4; w++) {
-          const beginn = new Date(montag.getTime() + (p.wochentag - 1) * TAG + w * 7 * TAG + p.stunde * 60 * 60_000);
+          const beginn = zeitpunkt(w, p.wochentag, p.stunde);
           termine.push({
             id: crypto.randomUUID(),
             praxisId: ctx.praxis.id,
@@ -94,8 +170,14 @@ export const demoRouter = router({
             patientId: id,
             terminId: t.id,
             art: erstes ? "erstgespraech" : "verlauf",
-            inhaltEnc: enc(ctx.praxis, "doku_eintraege.inhalt", dokuId, VERLAUF[i % VERLAUF.length] ?? ""),
-            diagnoseIcd10Enc: i === 0 ? enc(ctx.praxis, "doku_eintraege.diagnose_icd10", dokuId, p.diagnose) : null,
+            inhaltEnc: enc(
+              ctx.praxis,
+              "doku_eintraege.inhalt",
+              dokuId,
+              VERLAUF[i % VERLAUF.length] ?? "",
+            ),
+            diagnoseIcd10Enc:
+              i === 0 ? enc(ctx.praxis, "doku_eintraege.diagnose_icd10", dokuId, p.diagnose) : null,
             erstelltVon: ctx.benutzer.id,
             erstelltAm: new Date(t.ende.getTime() + 10 * 60_000),
           });

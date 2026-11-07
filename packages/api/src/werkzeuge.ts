@@ -11,7 +11,12 @@ export function dec(p: PraxisZugang, feld: string, id: string, wert: string): st
   return entschluesseln(wert, p.schluessel, `${feld}:${id}`);
 }
 
-export function decOpt(p: PraxisZugang, feld: string, id: string, wert: string | null): string | null {
+export function decOpt(
+  p: PraxisZugang,
+  feld: string,
+  id: string,
+  wert: string | null,
+): string | null {
   return wert === null ? null : dec(p, feld, id, wert);
 }
 

@@ -8,6 +8,10 @@ import {
   kostenzuschussHonorarnoteSchema,
   loeschbarAb,
   summeCent,
+  wienDatum,
+  wienZeit,
+  wienZuDate,
+  wochenBeginn,
 } from "./index";
 
 describe("formatEuro", () => {
@@ -151,7 +155,9 @@ describe("fehlendeKostenzuschussAngaben", () => {
       anschrift: null,
     },
     diagnoseIcd10: "F32.1",
-    sitzungen: [{ datum: "2026-11-01", dauerMinuten: 50, bezeichnung: "Einzel", honorarCent: 9000 }],
+    sitzungen: [
+      { datum: "2026-11-01", dauerMinuten: 50, bezeichnung: "Einzel", honorarCent: 9000 },
+    ],
     summeCent: 9000,
   };
   it("ist leer bei vollständigen Angaben", () => {
@@ -174,5 +180,22 @@ describe("fehlendeKostenzuschussAngaben", () => {
         patient: { ...inhalt.patient, svNummer: null, versicherungstraeger: "privat" },
       }),
     ).toEqual([]);
+  });
+});
+
+describe("Zeit in Wien", () => {
+  it("rechnet Winterzeit (UTC+1) und Sommerzeit (UTC+2) richtig um", () => {
+    expect(wienZuDate("2026-11-09", "09:00").toISOString()).toBe("2026-11-09T08:00:00.000Z");
+    expect(wienZuDate("2026-07-01", "09:00").toISOString()).toBe("2026-07-01T07:00:00.000Z");
+  });
+  it("liefert Datum und Uhrzeit in Wien", () => {
+    const d = new Date("2026-11-08T23:30:00Z");
+    expect(wienDatum(d)).toBe("2026-11-09");
+    expect(wienZeit(d)).toBe("00:30");
+  });
+  it("findet den Montag einer Woche", () => {
+    expect(wochenBeginn("2026-11-07")).toBe("2026-11-02");
+    expect(wochenBeginn("2026-11-02")).toBe("2026-11-02");
+    expect(wochenBeginn("2026-11-08")).toBe("2026-11-02");
   });
 });

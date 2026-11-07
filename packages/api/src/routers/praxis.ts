@@ -30,13 +30,16 @@ export const praxisRouter = router({
   /** Wer bin ich, und habe ich schon eine Praxis? Öffentlich, damit die Oberfläche weiß, was sie zeigen soll. */
   ich: oeffentlich.query(({ ctx }) => ({
     benutzer: ctx.benutzer,
-    praxis: ctx.praxis ? { id: ctx.praxis.id, name: ctx.praxis.name, rolle: ctx.praxis.rolle } : null,
+    praxis: ctx.praxis
+      ? { id: ctx.praxis.id, name: ctx.praxis.name, rolle: ctx.praxis.rolle }
+      : null,
   })),
 
   anlegen: angemeldet
     .input(praxisDaten.extend({ berufsbezeichnung: z.string().trim().max(120).optional() }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.praxis) throw new TRPCError({ code: "CONFLICT", message: "Du hast bereits eine Praxis." });
+      if (ctx.praxis)
+        throw new TRPCError({ code: "CONFLICT", message: "Du hast bereits eine Praxis." });
       const id = crypto.randomUUID();
       await ctx.db.transaction(async (tx) => {
         await tx.insert(schema.praxen).values({
@@ -91,7 +94,10 @@ export const praxisRouter = router({
     .input(praxisDaten.extend({ berufsbezeichnung: z.string().trim().max(120).optional() }))
     .mutation(async ({ ctx, input }) => {
       if (ctx.praxis.rolle !== "inhaber") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Nur die Inhaber:in ändert Praxisdaten." });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Nur die Inhaber:in ändert Praxisdaten.",
+        });
       }
       await ctx.db
         .update(schema.praxen)
@@ -138,7 +144,9 @@ export const praxisRouter = router({
         await ctx.db
           .update(schema.sitzungsarten)
           .set(werte)
-          .where(and(eq(schema.sitzungsarten.id, id), eq(schema.sitzungsarten.praxisId, ctx.praxis.id)));
+          .where(
+            and(eq(schema.sitzungsarten.id, id), eq(schema.sitzungsarten.praxisId, ctx.praxis.id)),
+          );
       } else {
         await ctx.db.insert(schema.sitzungsarten).values({ ...werte, praxisId: ctx.praxis.id });
       }

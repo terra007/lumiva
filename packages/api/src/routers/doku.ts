@@ -12,7 +12,12 @@ export async function letzteDiagnose(ctx: Parameters<typeof patientLaden>[0], pa
   const zeilen = await ctx.db
     .select({ id: schema.dokuEintraege.id, diagnoseEnc: schema.dokuEintraege.diagnoseIcd10Enc })
     .from(schema.dokuEintraege)
-    .where(and(eq(schema.dokuEintraege.praxisId, ctx.praxis.id), eq(schema.dokuEintraege.patientId, patientId)))
+    .where(
+      and(
+        eq(schema.dokuEintraege.praxisId, ctx.praxis.id),
+        eq(schema.dokuEintraege.patientId, patientId),
+      ),
+    )
     .orderBy(desc(schema.dokuEintraege.erstelltAm));
   for (const z of zeilen) {
     const d = decOpt(ctx.praxis, "doku_eintraege.diagnose_icd10", z.id, z.diagnoseEnc);
@@ -27,7 +32,12 @@ export const dokuRouter = router({
     const zeilen = await ctx.db
       .select()
       .from(schema.dokuEintraege)
-      .where(and(eq(schema.dokuEintraege.praxisId, ctx.praxis.id), eq(schema.dokuEintraege.patientId, input.patientId)))
+      .where(
+        and(
+          eq(schema.dokuEintraege.praxisId, ctx.praxis.id),
+          eq(schema.dokuEintraege.patientId, input.patientId),
+        ),
+      )
       .orderBy(desc(schema.dokuEintraege.erstelltAm));
     await protokollieren(ctx, "gelesen", "doku", input.patientId, { eintraege: zeilen.length });
     return zeilen.map((z) => ({
@@ -62,8 +72,17 @@ export const dokuRouter = router({
         const [t] = await ctx.db
           .select({ id: schema.termine.id })
           .from(schema.termine)
-          .where(and(eq(schema.termine.id, input.terminId), eq(schema.termine.patientId, input.patientId)));
-        if (!t) throw new TRPCError({ code: "NOT_FOUND", message: "Termin gehört nicht zu dieser Person." });
+          .where(
+            and(
+              eq(schema.termine.id, input.terminId),
+              eq(schema.termine.patientId, input.patientId),
+            ),
+          );
+        if (!t)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Termin gehört nicht zu dieser Person.",
+          });
       }
       const id = crypto.randomUUID();
       await ctx.db.insert(schema.dokuEintraege).values({
@@ -88,12 +107,20 @@ export const dokuRouter = router({
       const [e] = await ctx.db
         .select()
         .from(schema.dokuEintraege)
-        .where(and(eq(schema.dokuEintraege.id, input.id), eq(schema.dokuEintraege.praxisId, ctx.praxis.id)));
+        .where(
+          and(
+            eq(schema.dokuEintraege.id, input.id),
+            eq(schema.dokuEintraege.praxisId, ctx.praxis.id),
+          ),
+        );
       if (!e) throw new TRPCError({ code: "NOT_FOUND" });
       await patientLaden(ctx, e.patientId);
       await ctx.db
         .update(schema.dokuEintraege)
-        .set({ inhaltEnc: enc(ctx.praxis, "doku_eintraege.inhalt", e.id, input.inhalt), geaendertAm: new Date() })
+        .set({
+          inhaltEnc: enc(ctx.praxis, "doku_eintraege.inhalt", e.id, input.inhalt),
+          geaendertAm: new Date(),
+        })
         .where(eq(schema.dokuEintraege.id, e.id));
       // Die alte Fassung bleibt im Protokoll nachvollziehbar, ohne Inhalt: nur dass und wann geändert wurde.
       await protokollieren(ctx, "geaendert", "doku", e.id);

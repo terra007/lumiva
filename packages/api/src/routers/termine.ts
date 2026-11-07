@@ -60,9 +60,15 @@ async function istAbgerechnet(ctx: Parameters<typeof patientLaden>[0], terminId:
   const zeilen = await ctx.db
     .select({ storniert: schema.honorarnoten.storniertAm })
     .from(schema.honorarnotePositionen)
-    .innerJoin(schema.honorarnoten, eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId))
+    .innerJoin(
+      schema.honorarnoten,
+      eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId),
+    )
     .where(
-      and(eq(schema.honorarnotePositionen.praxisId, ctx.praxis.id), eq(schema.honorarnotePositionen.terminId, terminId)),
+      and(
+        eq(schema.honorarnotePositionen.praxisId, ctx.praxis.id),
+        eq(schema.honorarnotePositionen.terminId, terminId),
+      ),
     );
   return zeilen.some((z) => z.storniert === null);
 }
@@ -71,8 +77,10 @@ export const termineRouter = router({
   zeitraum: inPraxis
     .input(z.object({ von: z.date(), bis: z.date(), patientId: z.uuid().optional() }))
     .query(({ ctx, input }) => {
-      if (input.bis.getTime() - input.von.getTime() > 62 * 24 * 60 * MINUTE) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Zeitraum höchstens zwei Monate." });
+      // Für eine einzelne Person darf es ein Jahr sein, für den ganzen Kalender höchstens zwei Monate.
+      const tage = input.patientId ? 400 : 62;
+      if (input.bis.getTime() - input.von.getTime() > tage * 24 * 60 * MINUTE) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Der Zeitraum ist zu lang." });
       }
       return termineImZeitraum(ctx, input.von, input.bis, input.patientId);
     }),
@@ -92,7 +100,12 @@ export const termineRouter = router({
       const [art] = await ctx.db
         .select()
         .from(schema.sitzungsarten)
-        .where(and(eq(schema.sitzungsarten.id, input.sitzungsartId), eq(schema.sitzungsarten.praxisId, ctx.praxis.id)));
+        .where(
+          and(
+            eq(schema.sitzungsarten.id, input.sitzungsartId),
+            eq(schema.sitzungsarten.praxisId, ctx.praxis.id),
+          ),
+        );
       if (!art) throw new TRPCError({ code: "NOT_FOUND", message: "Sitzungsart nicht gefunden." });
       const serieId = input.anzahl > 1 ? crypto.randomUUID() : null;
       const werte = Array.from({ length: input.anzahl }, (_, i) => {
@@ -108,8 +121,13 @@ export const termineRouter = router({
           serieId,
         };
       });
-      const angelegt = await ctx.db.insert(schema.termine).values(werte).returning({ id: schema.termine.id });
-      await protokollieren(ctx, "angelegt", "termin", angelegt[0]?.id ?? null, { anzahl: input.anzahl });
+      const angelegt = await ctx.db
+        .insert(schema.termine)
+        .values(werte)
+        .returning({ id: schema.termine.id });
+      await protokollieren(ctx, "angelegt", "termin", angelegt[0]?.id ?? null, {
+        anzahl: input.anzahl,
+      });
       return { anzahl: angelegt.length };
     }),
 
@@ -124,13 +142,17 @@ export const termineRouter = router({
     .mutation(async ({ ctx, input }) => {
       const termin = await terminLaden(ctx, input.id);
       if (await istAbgerechnet(ctx, termin.id)) {
-        throw new TRPCError({ code: "CONFLICT", message: "Der Termin steht schon auf einer Honorarnote." });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Der Termin steht schon auf einer Honorarnote.",
+        });
       }
       await ctx.db
         .update(schema.termine)
         .set({
           status: input.status,
-          ausfallhonorarCent: input.status === "nicht_erschienen" ? (input.ausfallhonorarCent ?? null) : null,
+          ausfallhonorarCent:
+            input.status === "nicht_erschienen" ? (input.ausfallhonorarCent ?? null) : null,
         })
         .where(eq(schema.termine.id, termin.id));
       await protokollieren(ctx, "status", "termin", termin.id, { status: input.status });
@@ -141,7 +163,10 @@ export const termineRouter = router({
     .mutation(async ({ ctx, input }) => {
       const termin = await terminLaden(ctx, input.id);
       if (termin.status !== "geplant") {
-        throw new TRPCError({ code: "CONFLICT", message: "Nur geplante Termine lassen sich verschieben." });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Nur geplante Termine lassen sich verschieben.",
+        });
       }
       const dauer = termin.ende.getTime() - termin.beginn.getTime();
       await ctx.db
@@ -156,7 +181,10 @@ export const termineRouter = router({
     .mutation(async ({ ctx, input }) => {
       const termin = await terminLaden(ctx, input.id);
       if (termin.status !== "geplant") {
-        throw new TRPCError({ code: "CONFLICT", message: "Nur geplante Termine lassen sich löschen." });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Nur geplante Termine lassen sich löschen.",
+        });
       }
       if (input.ganzeSerie && termin.serieId) {
         // Nur künftige, noch geplante Termine der Serie.
@@ -171,7 +199,12 @@ export const termineRouter = router({
               gte(schema.termine.beginn, termin.beginn),
             ),
           );
-        await ctx.db.delete(schema.termine).where(inArray(schema.termine.id, serie.map((s) => s.id)));
+        await ctx.db.delete(schema.termine).where(
+          inArray(
+            schema.termine.id,
+            serie.map((s) => s.id),
+          ),
+        );
       } else {
         await ctx.db.delete(schema.termine).where(eq(schema.termine.id, termin.id));
       }

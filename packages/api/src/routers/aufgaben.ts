@@ -8,7 +8,9 @@ import { dec } from "../werkzeuge";
 
 export const aufgabenRouter = router({
   liste: inPraxis
-    .input(z.object({ erledigt: z.boolean().default(false), patientId: z.uuid().optional() }).optional())
+    .input(
+      z.object({ erledigt: z.boolean().default(false), patientId: z.uuid().optional() }).optional(),
+    )
     .query(async ({ ctx, input }) => {
       const zeilen = await ctx.db
         .select({
@@ -22,11 +24,15 @@ export const aufgabenRouter = router({
           and(
             eq(schema.aufgaben.praxisId, ctx.praxis.id),
             eq(schema.aufgaben.zustaendigId, ctx.benutzer.id),
-            input?.erledigt ? isNotNull(schema.aufgaben.erledigtAm) : isNull(schema.aufgaben.erledigtAm),
+            input?.erledigt
+              ? isNotNull(schema.aufgaben.erledigtAm)
+              : isNull(schema.aufgaben.erledigtAm),
             input?.patientId ? eq(schema.aufgaben.patientId, input.patientId) : undefined,
           ),
         )
-        .orderBy(input?.erledigt ? desc(schema.aufgaben.erledigtAm) : asc(schema.aufgaben.faelligAm));
+        .orderBy(
+          input?.erledigt ? desc(schema.aufgaben.erledigtAm) : asc(schema.aufgaben.faelligAm),
+        );
       return zeilen.map(({ aufgabe, vornameEnc, nachnameEnc }) => ({
         ...aufgabe,
         patientName:

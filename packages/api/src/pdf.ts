@@ -33,21 +33,47 @@ export async function honorarnotePdf(
   const rechts = 539;
   let y = 790;
 
-  const text = (t: string, x: number, opts: { groesse?: number; bold?: boolean; farbe?: typeof dunkel } = {}) =>
-    seite.drawText(t, { x, y, size: opts.groesse ?? 10, font: opts.bold ? fett : schrift, color: opts.farbe ?? dunkel });
-  const rechtsbuendig = (t: string, xRechts: number, opts: { groesse?: number; bold?: boolean } = {}) => {
+  const text = (
+    t: string,
+    x: number,
+    opts: { groesse?: number; bold?: boolean; farbe?: typeof dunkel } = {},
+  ) =>
+    seite.drawText(t, {
+      x,
+      y,
+      size: opts.groesse ?? 10,
+      font: opts.bold ? fett : schrift,
+      color: opts.farbe ?? dunkel,
+    });
+  const rechtsbuendig = (
+    t: string,
+    xRechts: number,
+    opts: { groesse?: number; bold?: boolean } = {},
+  ) => {
     const breite = (opts.bold ? fett : schrift).widthOfTextAtSize(t, opts.groesse ?? 10);
     text(t, xRechts - breite, opts);
   };
   const zeile = () => {
-    seite.drawLine({ start: { x: links, y: y + 4 }, end: { x: rechts, y: y + 4 }, thickness: 0.5, color: rgb(0.85, 0.84, 0.8) });
+    seite.drawLine({
+      start: { x: links, y: y + 4 },
+      end: { x: rechts, y: y + 4 },
+      thickness: 0.5,
+      color: rgb(0.85, 0.84, 0.8),
+    });
   };
 
   // Kopf: Praxis
   text(n.praxis.name, links, { groesse: 14, bold: true });
   y -= 16;
-  text(n.therapeut.name + (n.therapeut.berufsbezeichnung ? `, ${n.therapeut.berufsbezeichnung}` : ""), links, { farbe: grau });
-  for (const t of [n.praxis.anschrift, [n.praxis.telefon, n.praxis.email].filter(Boolean).join(" · ")]) {
+  text(
+    n.therapeut.name + (n.therapeut.berufsbezeichnung ? `, ${n.therapeut.berufsbezeichnung}` : ""),
+    links,
+    { farbe: grau },
+  );
+  for (const t of [
+    n.praxis.anschrift,
+    [n.praxis.telefon, n.praxis.email].filter(Boolean).join(" · "),
+  ]) {
     if (!t) continue;
     y -= 13;
     text(t, links, { farbe: grau });
@@ -72,7 +98,10 @@ export async function honorarnotePdf(
   const angaben: [string, string][] = [
     ["Geburtsdatum", datum(n.patient.geburtsdatum)],
     ["Sozialversicherungsnr.", n.patient.svNummer ?? "–"],
-    ["Versicherungsträger", TRAEGER[n.patient.versicherungstraeger] ?? n.patient.versicherungstraeger],
+    [
+      "Versicherungsträger",
+      TRAEGER[n.patient.versicherungstraeger] ?? n.patient.versicherungstraeger,
+    ],
     ["Diagnose (ICD-10)", n.diagnoseIcd10 ?? "–"],
   ];
   for (const [k, v] of angaben) {
@@ -99,14 +128,22 @@ export async function honorarnotePdf(
   y -= 8;
   zeile();
   y -= 14;
-  text(`Summe (${n.sitzungen.length} ${n.sitzungen.length === 1 ? "Sitzung" : "Sitzungen"}, Einzelbehandlung)`, links, { bold: true });
+  text(
+    `Summe (${n.sitzungen.length} ${n.sitzungen.length === 1 ? "Sitzung" : "Sitzungen"}, Einzelbehandlung)`,
+    links,
+    { bold: true },
+  );
   rechtsbuendig(formatEuro(n.summeCent), rechts, { bold: true });
 
   y -= 30;
   text(UST_BEFREIUNGSVERMERK, links, { farbe: grau });
   if (n.praxis.iban && !vermerke.bezahltAm) {
     y -= 14;
-    text(`Bitte überweisen Sie den Betrag auf IBAN ${n.praxis.iban}, Verwendungszweck ${n.nummer}.`, links, { farbe: grau });
+    text(
+      `Bitte überweisen Sie den Betrag auf IBAN ${n.praxis.iban}, Verwendungszweck ${n.nummer}.`,
+      links,
+      { farbe: grau },
+    );
   }
   if (vermerke.bezahltAm) {
     y -= 24;
@@ -114,12 +151,21 @@ export async function honorarnotePdf(
   }
   if (vermerke.storniertAm) {
     y -= 24;
-    text(`STORNIERT am ${datum(vermerke.storniertAm)}`, links, { groesse: 14, bold: true, farbe: rgb(0.7, 0.15, 0.15) });
+    text(`STORNIERT am ${datum(vermerke.storniertAm)}`, links, {
+      groesse: 14,
+      bold: true,
+      farbe: rgb(0.7, 0.15, 0.15),
+    });
   }
 
   // Unterschrift
   y = 120;
-  seite.drawLine({ start: { x: rechts - 200, y }, end: { x: rechts, y }, thickness: 0.5, color: grau });
+  seite.drawLine({
+    start: { x: rechts - 200, y },
+    end: { x: rechts, y },
+    thickness: 0.5,
+    color: grau,
+  });
   y -= 12;
   rechtsbuendig("Unterschrift und Stempel", rechts, { groesse: 8 });
 

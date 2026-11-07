@@ -1,5 +1,10 @@
-import { schema, naechsteHonorarnoteNummer } from "@lumiva/db";
-import { fehlendeKostenzuschussAngaben, formatHonorarnoteNummer, type HonorarnoteInhalt } from "@lumiva/domain";
+import { naechsteHonorarnoteNummer, schema } from "@lumiva/db";
+import {
+  fehlendeKostenzuschussAngaben,
+  formatHonorarnoteNummer,
+  type HonorarnoteInhalt,
+  wienDatum,
+} from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -29,11 +34,17 @@ async function offeneTermine(ctx: Ctx, patientId: string) {
   const abgerechnet = await ctx.db
     .select({ terminId: schema.honorarnotePositionen.terminId })
     .from(schema.honorarnotePositionen)
-    .innerJoin(schema.honorarnoten, eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId))
+    .innerJoin(
+      schema.honorarnoten,
+      eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId),
+    )
     .where(
       and(
         eq(schema.honorarnotePositionen.praxisId, ctx.praxis.id),
-        inArray(schema.honorarnotePositionen.terminId, termine.map((t) => t.termin.id)),
+        inArray(
+          schema.honorarnotePositionen.terminId,
+          termine.map((t) => t.termin.id),
+        ),
         isNull(schema.honorarnoten.storniertAm),
       ),
     );
@@ -53,10 +64,6 @@ async function offeneTermine(ctx: Ctx, patientId: string) {
     .filter((t) => t.honorarCent > 0);
 }
 
-function wienDatum(d: Date) {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Vienna" }).format(d);
-}
-
 async function noteLaden(ctx: Ctx, id: string) {
   const [zeile] = await ctx.db
     .select({ note: schema.honorarnoten })
@@ -65,7 +72,9 @@ async function noteLaden(ctx: Ctx, id: string) {
     .where(and(patientenFilter(ctx), eq(schema.honorarnoten.id, id)));
   if (!zeile) throw new TRPCError({ code: "NOT_FOUND", message: "Honorarnote nicht gefunden." });
   const note = zeile.note;
-  const inhalt = JSON.parse(dec(ctx.praxis, "honorarnoten.inhalt", note.id, note.inhaltEnc)) as HonorarnoteInhalt;
+  const inhalt = JSON.parse(
+    dec(ctx.praxis, "honorarnoten.inhalt", note.id, note.inhaltEnc),
+  ) as HonorarnoteInhalt;
   return { note, inhalt };
 }
 
@@ -112,19 +121,33 @@ export const honorarnotenRouter = router({
       const offen = await offeneTermine(ctx, patient.id);
       const gewaehlt = offen.filter((t) => input.terminIds.includes(t.id));
       if (gewaehlt.length !== new Set(input.terminIds).size) {
-        throw new TRPCError({ code: "CONFLICT", message: "Ein Termin ist nicht (mehr) abrechenbar." });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Ein Termin ist nicht (mehr) abrechenbar.",
+        });
       }
-      const [praxis] = await ctx.db.select().from(schema.praxen).where(eq(schema.praxen.id, ctx.praxis.id));
+      const [praxis] = await ctx.db
+        .select()
+        .from(schema.praxen)
+        .where(eq(schema.praxen.id, ctx.praxis.id));
       const [therapeut] = await ctx.db
-        .select({ name: schema.user.name, berufsbezeichnung: schema.mitgliedschaften.berufsbezeichnung })
+        .select({
+          name: schema.user.name,
+          berufsbezeichnung: schema.mitgliedschaften.berufsbezeichnung,
+        })
         .from(schema.user)
         .leftJoin(
           schema.mitgliedschaften,
-          and(eq(schema.mitgliedschaften.benutzerId, schema.user.id), eq(schema.mitgliedschaften.praxisId, ctx.praxis.id)),
+          and(
+            eq(schema.mitgliedschaften.benutzerId, schema.user.id),
+            eq(schema.mitgliedschaften.praxisId, ctx.praxis.id),
+          ),
         )
         .where(eq(schema.user.id, patient.therapeutId));
       if (!praxis) throw new TRPCError({ code: "NOT_FOUND" });
-      const kontakt = JSON.parse(decOpt(ctx.praxis, "patienten.kontakt", patient.id, patient.kontaktEnc) ?? "{}") as {
+      const kontakt = JSON.parse(
+        decOpt(ctx.praxis, "patienten.kontakt", patient.id, patient.kontaktEnc) ?? "{}",
+      ) as {
         anschrift?: string;
       };
       const heute = wienDatum(new Date());
@@ -133,17 +156,32 @@ export const honorarnotenRouter = router({
 
       const entwurf: Omit<HonorarnoteInhalt, "nummer"> = {
         ausstellungsdatum: heute,
-        praxis: { name: praxis.name, anschrift: praxis.anschrift, telefon: praxis.telefon, email: praxis.email, iban: praxis.iban },
-        therapeut: { name: therapeut?.name ?? "", berufsbezeichnung: therapeut?.berufsbezeichnung ?? null },
+        praxis: {
+          name: praxis.name,
+          anschrift: praxis.anschrift,
+          telefon: praxis.telefon,
+          email: praxis.email,
+          iban: praxis.iban,
+        },
+        therapeut: {
+          name: therapeut?.name ?? "",
+          berufsbezeichnung: therapeut?.berufsbezeichnung ?? null,
+        },
         patient: {
           vorname: dec(ctx.praxis, "patienten.vorname", patient.id, patient.vornameEnc),
           nachname: dec(ctx.praxis, "patienten.nachname", patient.id, patient.nachnameEnc),
-          geburtsdatum: dec(ctx.praxis, "patienten.geburtsdatum", patient.id, patient.geburtsdatumEnc),
+          geburtsdatum: dec(
+            ctx.praxis,
+            "patienten.geburtsdatum",
+            patient.id,
+            patient.geburtsdatumEnc,
+          ),
           svNummer: decOpt(ctx.praxis, "patienten.sv_nummer", patient.id, patient.svNummerEnc),
           versicherungstraeger: patient.versicherungstraeger,
           anschrift: kontakt.anschrift || null,
         },
-        diagnoseIcd10: ctx.praxis.rolle === "assistenz" ? null : await letzteDiagnose(ctx, patient.id),
+        diagnoseIcd10:
+          ctx.praxis.rolle === "assistenz" ? null : await letzteDiagnose(ctx, patient.id),
         sitzungen: gewaehlt.map((t) => ({
           datum: wienDatum(t.beginn),
           dauerMinuten: t.dauerMinuten,
@@ -162,7 +200,10 @@ export const honorarnotenRouter = router({
 
       const nummer = await ctx.db.transaction(async (tx) => {
         const laufend = await naechsteHonorarnoteNummer(tx, ctx.praxis.id, jahr);
-        const inhalt: HonorarnoteInhalt = { ...entwurf, nummer: formatHonorarnoteNummer(jahr, laufend) };
+        const inhalt: HonorarnoteInhalt = {
+          ...entwurf,
+          nummer: formatHonorarnoteNummer(jahr, laufend),
+        };
         await tx.insert(schema.honorarnoten).values({
           id,
           praxisId: ctx.praxis.id,
@@ -174,7 +215,12 @@ export const honorarnotenRouter = router({
           inhaltEnc: enc(ctx.praxis, "honorarnoten.inhalt", id, JSON.stringify(inhalt)),
         });
         await tx.insert(schema.honorarnotePositionen).values(
-          gewaehlt.map((t) => ({ praxisId: ctx.praxis.id, honorarnoteId: id, terminId: t.id, honorarCent: t.honorarCent })),
+          gewaehlt.map((t) => ({
+            praxisId: ctx.praxis.id,
+            honorarnoteId: id,
+            terminId: t.id,
+            honorarCent: t.honorarCent,
+          })),
         );
         return inhalt.nummer;
       });
@@ -186,8 +232,12 @@ export const honorarnotenRouter = router({
     .input(z.object({ id: z.uuid(), am: z.iso.date().nullable() }))
     .mutation(async ({ ctx, input }) => {
       const { note } = await noteLaden(ctx, input.id);
-      if (note.storniertAm) throw new TRPCError({ code: "CONFLICT", message: "Die Honorarnote ist storniert." });
-      await ctx.db.update(schema.honorarnoten).set({ bezahltAm: input.am }).where(eq(schema.honorarnoten.id, note.id));
+      if (note.storniertAm)
+        throw new TRPCError({ code: "CONFLICT", message: "Die Honorarnote ist storniert." });
+      await ctx.db
+        .update(schema.honorarnoten)
+        .set({ bezahltAm: input.am })
+        .where(eq(schema.honorarnoten.id, note.id));
       await protokollieren(ctx, "bezahlt", "honorarnote", note.id, { bezahlt: input.am !== null });
     }),
 
@@ -204,8 +254,14 @@ export const honorarnotenRouter = router({
   /** PDF als Base64, damit es über JSON (Web und App) transportiert werden kann. */
   pdf: inPraxis.input(z.object({ id: z.uuid() })).query(async ({ ctx, input }) => {
     const { note, inhalt } = await noteLaden(ctx, input.id);
-    const bytes = await honorarnotePdf(inhalt, { bezahltAm: note.bezahltAm, storniertAm: note.storniertAm });
+    const bytes = await honorarnotePdf(inhalt, {
+      bezahltAm: note.bezahltAm,
+      storniertAm: note.storniertAm,
+    });
     await protokollieren(ctx, "pdf", "honorarnote", note.id);
-    return { dateiname: `Honorarnote-${inhalt.nummer}.pdf`, base64: Buffer.from(bytes).toString("base64") };
+    return {
+      dateiname: `Honorarnote-${inhalt.nummer}.pdf`,
+      base64: Buffer.from(bytes).toString("base64"),
+    };
   }),
 });

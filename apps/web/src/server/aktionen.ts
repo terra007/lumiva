@@ -1,0 +1,260 @@
+"use server";
+import { wienZuDate } from "@lumiva/domain";
+import { TRPCError } from "@trpc/server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { ZodError } from "zod";
+import { api } from "./lumiva";
+
+export type Ergebnis = { ok?: boolean; fehler?: string } | null;
+
+const FELDNAMEN: Record<string, string> = {
+  vorname: "Vorname",
+  nachname: "Nachname",
+  geburtsdatum: "Geburtsdatum",
+  svNummer: "Sozialversicherungsnummer",
+  name: "Name",
+  anschrift: "Anschrift",
+  email: "E-Mail",
+  iban: "IBAN",
+  inhalt: "Text",
+  diagnoseIcd10: "Diagnose",
+  titel: "Titel",
+  terminIds: "Termine",
+};
+
+function fehlertext(e: unknown): string | null {
+  if (e instanceof TRPCError) {
+    if (e.cause instanceof ZodError) {
+      const erstes = e.cause.issues[0];
+      const feld = erstes?.path[0]
+        ? (FELDNAMEN[String(erstes.path[0])] ?? String(erstes.path[0]))
+        : "Eingabe";
+      return `${feld}: ${erstes?.message ?? "ungültig"}`;
+    }
+    return e.message;
+  }
+  return null;
+}
+
+/** Führt eine Änderung aus und übersetzt erwartbare Fehler in eine Meldung fürs Formular. */
+async function ausfuehren(
+  fn: () => Promise<unknown>,
+  pfade: string[] = ["/", "layout"],
+): Promise<Ergebnis> {
+  try {
+    await fn();
+  } catch (e) {
+    const text = fehlertext(e);
+    if (text) return { fehler: text };
+    throw e;
+  }
+  for (const p of pfade) {
+    if (p === "layout") revalidatePath("/", "layout");
+    else revalidatePath(p);
+  }
+  return { ok: true };
+}
+
+const s = (d: FormData, k: string) => String(d.get(k) ?? "").trim();
+const optional = (d: FormData, k: string) => s(d, k) || undefined;
+const cent = (d: FormData, k: string) => Math.round(Number(s(d, k).replace(",", ".")) * 100);
+
+// Praxis
+
+export async function praxisAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  const r = await ausfuehren(async () =>
+    (await api()).praxis.anlegen({
+      name: s(d, "name"),
+      anschrift: s(d, "anschrift"),
+      telefon: optional(d, "telefon"),
+      email: s(d, "email"),
+      iban: s(d, "iban"),
+      berufsbezeichnung: optional(d, "berufsbezeichnung"),
+    }),
+  );
+  if (r?.ok) redirect("/");
+  return r;
+}
+
+export async function praxisSpeichern(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).praxis.speichern({
+      name: s(d, "name"),
+      anschrift: s(d, "anschrift"),
+      telefon: optional(d, "telefon"),
+      email: s(d, "email"),
+      iban: s(d, "iban"),
+      berufsbezeichnung: optional(d, "berufsbezeichnung"),
+    }),
+  );
+}
+
+export async function sitzungsartSpeichern(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).praxis.sitzungsartSpeichern({
+      id: optional(d, "id"),
+      name: s(d, "name"),
+      dauerMinuten: Number(s(d, "dauerMinuten")),
+      honorarCent: cent(d, "honorar"),
+      aktiv: d.get("aktiv") !== "nein",
+    }),
+  );
+}
+
+export async function demoLaden(_: Ergebnis): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).demo.laden());
+}
+
+// Patient:innen
+
+function stammdaten(d: FormData) {
+  return {
+    vorname: s(d, "vorname"),
+    nachname: s(d, "nachname"),
+    geburtsdatum: s(d, "geburtsdatum"),
+    svNummer: s(d, "svNummer"),
+    versicherungstraeger: s(d, "versicherungstraeger") as "oegk",
+    kontakt: { telefon: s(d, "telefon"), email: s(d, "email"), anschrift: s(d, "anschrift") },
+  };
+}
+
+export async function patientAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  let id = "";
+  const r = await ausfuehren(async () => {
+    id = (await (await api()).patienten.anlegen(stammdaten(d))).id;
+  });
+  if (r?.ok) redirect(`/patienten/${id}`);
+  return r;
+}
+
+export async function patientBearbeiten(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  const id = s(d, "id");
+  const r = await ausfuehren(async () =>
+    (await api()).patienten.bearbeiten({ id, ...stammdaten(d) }),
+  );
+  if (r?.ok) redirect(`/patienten/${id}`);
+  return r;
+}
+
+export async function bestaetigungenSpeichern(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).patienten.bestaetigungen({
+      id: s(d, "id"),
+      aerztlicheBestaetigungAm: s(d, "aerztlicheBestaetigungAm") || null,
+      bewilligungAm: s(d, "bewilligungAm") || null,
+    }),
+  );
+}
+
+export async function patientStatus(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).patienten.status({ id: s(d, "id"), status: s(d, "status") as "aktiv" }),
+  );
+}
+
+// Termine
+
+export async function terminAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => {
+    if (!s(d, "datum") || !s(d, "uhrzeit"))
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Bitte Datum und Uhrzeit angeben." });
+    await (await api()).termine.anlegen({
+      patientId: s(d, "patientId"),
+      sitzungsartId: s(d, "sitzungsartId"),
+      beginn: wienZuDate(s(d, "datum"), s(d, "uhrzeit")),
+      anzahl: Number(s(d, "anzahl") || "1"),
+    });
+  });
+}
+
+export async function terminStatus(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).termine.status({
+      id: s(d, "id"),
+      status: s(d, "status") as "erledigt",
+      ausfallhonorarCent: s(d, "ausfallhonorar") ? cent(d, "ausfallhonorar") : null,
+    }),
+  );
+}
+
+export async function terminVerschieben(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).termine.verschieben({
+      id: s(d, "id"),
+      beginn: wienZuDate(s(d, "datum"), s(d, "uhrzeit")),
+    }),
+  );
+}
+
+export async function terminLoeschen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  const zurueck = s(d, "zurueck");
+  const r = await ausfuehren(async () =>
+    (await api()).termine.loeschen({ id: s(d, "id"), ganzeSerie: s(d, "serie") === "ja" }),
+  );
+  if (r?.ok && zurueck) redirect(zurueck);
+  return r;
+}
+
+// Dokumentation
+
+export async function dokuAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).doku.anlegen({
+      patientId: s(d, "patientId"),
+      terminId: optional(d, "terminId"),
+      art: s(d, "art") as "verlauf",
+      inhalt: s(d, "inhalt"),
+      diagnoseIcd10: optional(d, "diagnoseIcd10"),
+    }),
+  );
+}
+
+export async function dokuBearbeiten(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).doku.bearbeiten({ id: s(d, "id"), inhalt: s(d, "inhalt") }),
+  );
+}
+
+// Honorarnoten
+
+export async function honorarnoteAusstellen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).honorarnoten.ausstellen({
+      patientId: s(d, "patientId"),
+      terminIds: d.getAll("terminIds").map(String),
+    }),
+  );
+}
+
+export async function honorarnoteBezahlt(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).honorarnoten.bezahlt({ id: s(d, "id"), am: s(d, "am") || null }),
+  );
+}
+
+export async function honorarnoteStornieren(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).honorarnoten.stornieren({ id: s(d, "id") }));
+}
+
+// Aufgaben
+
+export async function aufgabeAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).aufgaben.anlegen({
+      titel: s(d, "titel"),
+      faelligAm: optional(d, "faelligAm"),
+      patientId: optional(d, "patientId"),
+    }),
+  );
+}
+
+export async function aufgabeErledigen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).aufgaben.erledigen({ id: s(d, "id"), erledigt: s(d, "erledigt") === "ja" }),
+  );
+}
+
+export async function aufgabeLoeschen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).aufgaben.loeschen({ id: s(d, "id") }));
+}

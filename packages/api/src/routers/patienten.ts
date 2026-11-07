@@ -1,5 +1,5 @@
-import { istGueltigeSvNummer, kostenzuschussHinweise, loeschbarAb } from "@lumiva/domain";
 import { schema } from "@lumiva/db";
+import { istGueltigeSvNummer, kostenzuschussHinweise, loeschbarAb } from "@lumiva/domain";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
@@ -23,7 +23,10 @@ const stammdaten = z.object({
     .string()
     .trim()
     .transform((s) => s.replace(/\s/g, ""))
-    .refine((s) => s === "" || istGueltigeSvNummer(s), "Sozialversicherungsnummer ungültig (10 Ziffern, Prüfziffer)"),
+    .refine(
+      (s) => s === "" || istGueltigeSvNummer(s),
+      "Sozialversicherungsnummer ungültig (10 Ziffern, Prüfziffer)",
+    ),
   versicherungstraeger: z.enum(VERSICHERUNGSTRAEGER),
   kontakt: kontaktSchema,
 });
@@ -38,7 +41,9 @@ function entschluesselt(ctx: { praxis: Parameters<typeof dec>[0] }, p: PatientZe
     nachname: dec(ctx.praxis, "patienten.nachname", p.id, p.nachnameEnc),
     geburtsdatum: dec(ctx.praxis, "patienten.geburtsdatum", p.id, p.geburtsdatumEnc),
     svNummer: decOpt(ctx.praxis, "patienten.sv_nummer", p.id, p.svNummerEnc) ?? "",
-    kontakt: (kontaktText ? JSON.parse(kontaktText) : { telefon: "", email: "", anschrift: "" }) as Kontakt,
+    kontakt: (kontaktText
+      ? JSON.parse(kontaktText)
+      : { telefon: "", email: "", anschrift: "" }) as Kontakt,
     versicherungstraeger: p.versicherungstraeger,
     status: p.status,
     therapeutId: p.therapeutId,
@@ -52,7 +57,11 @@ function entschluesselt(ctx: { praxis: Parameters<typeof dec>[0] }, p: PatientZe
 
 export type Patient = ReturnType<typeof entschluesselt>;
 
-function verschluesselteFelder(ctx: { praxis: Parameters<typeof enc>[0] }, id: string, d: z.infer<typeof stammdaten>) {
+function verschluesselteFelder(
+  ctx: { praxis: Parameters<typeof enc>[0] },
+  id: string,
+  d: z.infer<typeof stammdaten>,
+) {
   return {
     vornameEnc: enc(ctx.praxis, "patienten.vorname", id, d.vorname),
     nachnameEnc: enc(ctx.praxis, "patienten.nachname", id, d.nachname),
@@ -96,7 +105,11 @@ export function hinweiseFuer(p: Patient, erledigteSitzungen: number) {
 
 export const patientenRouter = router({
   liste: inPraxis
-    .input(z.object({ status: z.enum(["aktiv", "pausiert", "abgeschlossen", "alle"]).default("aktiv") }).optional())
+    .input(
+      z
+        .object({ status: z.enum(["aktiv", "pausiert", "abgeschlossen", "alle"]).default("aktiv") })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const status = input?.status ?? "aktiv";
       const zeilen = await ctx.db
@@ -108,7 +121,11 @@ export const patientenRouter = router({
             : and(patientenFilter(ctx), eq(schema.patienten.status, status)),
         );
       const patienten = zeilen.map((z) => entschluesselt(ctx, z));
-      const sitzungen = await sitzungenGezaehlt(ctx.db, ctx.praxis.id, patienten.map((p) => p.id));
+      const sitzungen = await sitzungenGezaehlt(
+        ctx.db,
+        ctx.praxis.id,
+        patienten.map((p) => p.id),
+      );
       return patienten
         .map((p) => {
           const anzahl = sitzungen.get(p.id) ?? 0;
@@ -159,7 +176,10 @@ export const patientenRouter = router({
       await patientLaden(ctx, input.id);
       await ctx.db
         .update(schema.patienten)
-        .set({ aerztlicheBestaetigungAm: input.aerztlicheBestaetigungAm, bewilligungAm: input.bewilligungAm })
+        .set({
+          aerztlicheBestaetigungAm: input.aerztlicheBestaetigungAm,
+          bewilligungAm: input.bewilligungAm,
+        })
         .where(eq(schema.patienten.id, input.id));
       await protokollieren(ctx, "geaendert", "patient", input.id, { feld: "bestaetigungen" });
     }),
@@ -175,10 +195,16 @@ export const patientenRouter = router({
     .mutation(async ({ ctx, input }) => {
       await patientLaden(ctx, input.id);
       const ende =
-        input.status === "abgeschlossen" ? (input.behandlungsende ?? new Date().toISOString().slice(0, 10)) : null;
+        input.status === "abgeschlossen"
+          ? (input.behandlungsende ?? new Date().toISOString().slice(0, 10))
+          : null;
       await ctx.db
         .update(schema.patienten)
-        .set({ status: input.status, behandlungsende: ende, loeschbarAb: ende ? loeschbarAb(ende) : null })
+        .set({
+          status: input.status,
+          behandlungsende: ende,
+          loeschbarAb: ende ? loeschbarAb(ende) : null,
+        })
         .where(eq(schema.patienten.id, input.id));
       await protokollieren(ctx, "status", "patient", input.id, { status: input.status });
     }),

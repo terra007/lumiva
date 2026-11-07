@@ -33,3 +33,30 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+@layer components {
+  .karte {
+    @apply rounded-xl border border-line bg-white/60 p-5 dark:bg-white/[0.03];
+  }
+  .knopf {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 font-medium text-background text-sm transition hover:opacity-90 disabled:opacity-50;
+  }
+  .knopf-zweit {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-1.5 font-medium text-sm transition hover:bg-line/50 disabled:opacity-50;
+  }
+  .knopf-gefahr {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 px-3 py-1.5 font-medium text-red-700 text-sm transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950;
+  }
+  .eingabe {
+    @apply w-full rounded-lg border border-line bg-background px-3 py-2 text-sm outline-none focus:border-akzent focus:ring-2 focus:ring-akzent/30;
+  }
+  .etikett {
+    @apply flex flex-col gap-1 font-medium text-sm;
+  }
+  .abzeichen {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 font-medium text-xs;
+  }
+  .verweis {
+    @apply underline decoration-line underline-offset-4 hover:decoration-akzent;
+  }
+}
