@@ -172,10 +172,18 @@ export const dokuEintraege = pgTable(
     terminId: uuid(),
     art: eintragArt().notNull(),
     inhaltEnc: text().notNull(),
+    /** Mehrere Codes als „F32.1, F41.1“. */
     diagnoseIcd10Enc: text(),
+    /** Wörtliches Transkript der KI-Aufnahme, wenn die Therapeut:in es mitspeichert. */
+    transkriptEnc: text(),
     erstelltVon: text().notNull(),
     erstelltAm: erstelltAm(),
     geaendertAm: timestamp({ withTimezone: true }),
+    /**
+     * Papierkorb: gelöschte Einträge bleiben wegen der Dokumentations- und Aufbewahrungspflicht
+     * (§ 18 PThG 2024) erhalten und lassen sich wiederherstellen.
+     */
+    geloeschtAm: timestamp({ withTimezone: true }),
   },
   (t) => [
     index().on(t.patientId),

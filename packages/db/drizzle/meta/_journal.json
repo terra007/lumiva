@@ -15,6 +15,13 @@
       "when": 1794071341767,
       "tag": "0001_ki_einwilligung",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794082929499,
+      "tag": "0002_doku_papierkorb_transkript",
+      "breakpoints": true
     }
   ]
 }

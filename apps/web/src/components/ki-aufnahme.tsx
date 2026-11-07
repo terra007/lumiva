@@ -28,6 +28,7 @@ export function KiAufnahme({
   const [modus, setModus] = useState<"diktat" | "sitzung">("diktat");
   const [sekunden, setSekunden] = useState(0);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [transkriptSichtbar, setTranskriptSichtbar] = useState(false);
   const rekorder = useRef<MediaRecorder | null>(null);
   const wurzel = useRef<HTMLDivElement>(null);
 
@@ -101,15 +102,19 @@ export function KiAufnahme({
       } else {
         const feld = form?.querySelector<HTMLTextAreaElement>("[name=inhalt]");
         if (feld) {
-          // Beim Diktat auch das wörtliche Transkript, damit der Entwurf überprüfbar ist.
-          // Bei der Sitzung nicht: Ein wörtliches Sitzungsprotokoll gehört nicht in die Akte.
-          const text =
-            gesendeterModus === "diktat" && ergebnis.transkript
-              ? `Zusammenfassung (KI-Entwurf, bitte prüfen):\n${ergebnis.entwurf}\n\nTranskript des Diktats:\n${ergebnis.transkript}`
-              : ergebnis.entwurf;
-          feld.value = feld.value.trim() ? `${feld.value.trim()}\n\n${text}` : text;
-          feld.rows = Math.max(feld.rows, 12);
+          feld.value = feld.value.trim()
+            ? `${feld.value.trim()}\n\n${ergebnis.entwurf}`
+            : ergebnis.entwurf;
+          feld.rows = Math.max(feld.rows, 10);
           feld.focus();
+        }
+        // Das wörtliche Transkript kommt in ein eigenes Feld und wird mit dem Eintrag gespeichert.
+        const transkriptFeld = form?.querySelector<HTMLTextAreaElement>("[name=transkript]");
+        if (transkriptFeld && ergebnis.transkript) {
+          transkriptFeld.value = transkriptFeld.value.trim()
+            ? `${transkriptFeld.value.trim()}\n\n${ergebnis.transkript}`
+            : ergebnis.transkript;
+          setTranskriptSichtbar(true);
         }
       }
     } catch {
@@ -161,7 +166,7 @@ export function KiAufnahme({
       </div>
       <p className="text-muted text-xs">
         KI auf deinem eigenen Server. Die Aufnahme wird nicht gespeichert, nur dein geprüfter
-        Eintrag.
+        Eintrag und das Transkript, wenn du es nicht leerst.
         {!sitzungErlaubt &&
           " Sitzungen aufnehmen geht erst mit eingetragener Einwilligung (unter „Kostenzuschuss und Einwilligung“)."}
       </p>
@@ -170,6 +175,10 @@ export function KiAufnahme({
           {fehler}
         </p>
       )}
+      <label className={transkriptSichtbar ? "etikett" : "hidden"}>
+        Transkript (wörtlich, wird mitgespeichert)
+        <textarea name="transkript" rows={6} className="eingabe font-normal text-sm" />
+      </label>
     </div>
   );
 }

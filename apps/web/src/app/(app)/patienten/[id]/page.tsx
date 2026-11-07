@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AktionsKnopf, Feld, Formular } from "@/components/formular";
+import { Icd10Auswahl } from "@/components/icd10-auswahl";
 import { KiAufnahme } from "@/components/ki-aufnahme";
 import { NotenStatus } from "@/components/noten-status";
 import {
@@ -17,13 +18,27 @@ import {
   aufgabeErledigen,
   bestaetigungenSpeichern,
   dokuAnlegen,
+  dokuLoeschen,
+  dokuWiederherstellen,
   honorarnoteAusstellen,
   patientStatus,
 } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
 
-export default async function PatientAkte({ params }: PageProps<"/patienten/[id]">) {
+const DOKU_ANSICHTEN = {
+  zusammenfassungen: "Zusammenfassungen",
+  transkripte: "Transkripte",
+  papierkorb: "Papierkorb",
+} as const;
+type DokuAnsicht = keyof typeof DOKU_ANSICHTEN;
+
+export default async function PatientAkte({ params, searchParams }: PageProps<"/patienten/[id]">) {
   const { id } = await params;
+  const { doku: gewaehlteAnsicht } = await searchParams;
+  const ansicht: DokuAnsicht =
+    typeof gewaehlteAnsicht === "string" && gewaehlteAnsicht in DOKU_ANSICHTEN
+      ? (gewaehlteAnsicht as DokuAnsicht)
+      : "zusammenfassungen";
   const lumiva = await praxisApi();
   const ich = await lumiva.praxis.ich();
   const darfAkte = ich.praxis?.rolle !== "assistenz";
@@ -42,6 +57,18 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
     darfAkte ? lumiva.ki.verfuegbar() : Promise.resolve(false),
   ]);
   const vergangen = termine.filter((t) => t.beginn < jetzt).reverse();
+  const aktiv = doku.filter((e) => !e.geloeschtAm);
+  const anzahl: Record<DokuAnsicht, number> = {
+    zusammenfassungen: aktiv.length,
+    transkripte: aktiv.filter((e) => e.transkript).length,
+    papierkorb: doku.length - aktiv.length,
+  };
+  const sichtbar =
+    ansicht === "papierkorb"
+      ? doku.filter((e) => e.geloeschtAm)
+      : ansicht === "transkripte"
+        ? aktiv.filter((e) => e.transkript)
+        : aktiv;
   const kommend = termine.filter((t) => t.beginn >= jetzt);
 
   return (
@@ -106,7 +133,7 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
                     <select
                       name="art"
                       className="eingabe"
-                      defaultValue={doku.length === 0 ? "erstgespraech" : "verlauf"}
+                      defaultValue={aktiv.length === 0 ? "erstgespraech" : "verlauf"}
                     >
                       {Object.entries(DOKU_ART).map(([w, t]) => (
                         <option key={w} value={w}>
@@ -130,7 +157,7 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
                       ))}
                     </select>
                   </label>
-                  <Feld name="diagnoseIcd10" label="Diagnose (ICD-10)" placeholder="F32.1" />
+                  <Icd10Auswahl name="diagnoseIcd10" label="Diagnosen (ICD-10)" />
                 </div>
                 {kiVerfuegbar && (
                   <KiAufnahme
@@ -149,22 +176,79 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
                   />
                 </label>
               </Formular>
+              <nav className="flex flex-wrap gap-1 border-line border-b" aria-label="Einträge">
+                {(Object.keys(DOKU_ANSICHTEN) as DokuAnsicht[]).map((a) => (
+                  <Link
+                    key={a}
+                    href={`/patienten/${p.id}?doku=${a}`}
+                    scroll={false}
+                    aria-current={a === ansicht ? "page" : undefined}
+                    className={`-mb-px border-b-2 px-3 py-2 font-medium text-sm ${
+                      a === ansicht
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {DOKU_ANSICHTEN[a]}
+                    {anzahl[a] > 0 && <span className="ml-1.5 text-muted">{anzahl[a]}</span>}
+                  </Link>
+                ))}
+              </nav>
+              {ansicht === "papierkorb" && (
+                <p className="text-muted text-xs">
+                  Gelöschte Einträge bleiben wegen der Aufbewahrungspflicht (§ 18 PThG 2024)
+                  erhalten und lassen sich wiederherstellen.
+                </p>
+              )}
+              {sichtbar.length === 0 && (
+                <p className="text-muted text-sm">
+                  {ansicht === "transkripte"
+                    ? "Noch keine Transkripte. Sie entstehen mit „Diktat aufnehmen“ oder „Sitzung aufnehmen“."
+                    : ansicht === "papierkorb"
+                      ? "Der Papierkorb ist leer."
+                      : "Noch keine Einträge."}
+                </p>
+              )}
               <ol className="flex flex-col divide-y divide-line">
-                {doku.map((e) => (
+                {sichtbar.map((e) => (
                   <li key={e.id} className="flex flex-col gap-1 py-3">
                     <div className="flex flex-wrap items-center gap-2 text-muted text-xs">
                       <span className="font-medium text-foreground">{DOKU_ART[e.art]}</span>
                       <span>{formatDatum(datumIso(e.erstelltAm))}</span>
-                      {e.diagnoseIcd10 && (
-                        <span className="abzeichen bg-line/60 text-foreground">
-                          {e.diagnoseIcd10}
+                      {e.diagnoseIcd10?.split(", ").map((code) => (
+                        <span key={code} className="abzeichen bg-line/60 text-foreground">
+                          {code}
                         </span>
-                      )}
+                      ))}
                       {e.geaendertAm && (
                         <span>geändert {formatDatum(datumIso(e.geaendertAm))}</span>
                       )}
+                      {e.geloeschtAm && (
+                        <span>gelöscht {formatDatum(datumIso(e.geloeschtAm))}</span>
+                      )}
+                      <span className="ml-auto">
+                        {e.geloeschtAm ? (
+                          <AktionsKnopf
+                            aktion={dokuWiederherstellen}
+                            felder={{ id: e.id }}
+                            text="Wiederherstellen"
+                            klasse="verweis text-xs"
+                          />
+                        ) : (
+                          <AktionsKnopf
+                            aktion={dokuLoeschen}
+                            felder={{ id: e.id }}
+                            text={<Papierkorb />}
+                            titel="Eintrag löschen"
+                            klasse="rounded-lg p-1.5 text-muted hover:bg-line/60 hover:text-red-700"
+                            bestaetigen="Willst du diesen Eintrag wirklich löschen? Er kommt in den Papierkorb und lässt sich dort wiederherstellen."
+                          />
+                        )}
+                      </span>
                     </div>
-                    <p className="whitespace-pre-wrap text-sm">{e.inhalt}</p>
+                    <p className="whitespace-pre-wrap text-sm">
+                      {ansicht === "transkripte" ? e.transkript : e.inhalt}
+                    </p>
                   </li>
                 ))}
               </ol>
@@ -338,5 +422,22 @@ function TerminListe({
         ))}
       </ul>
     </div>
+  );
+}
+
+function Papierkorb() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+    </svg>
   );
 }

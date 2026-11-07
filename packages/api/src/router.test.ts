@@ -88,9 +88,28 @@ describe("LUMIVA-API", () => {
       terminId: erster?.id,
       art: "erstgespraech",
       inhalt: "Erstgespräch",
-      diagnoseIcd10: "f32.1",
+      diagnoseIcd10: ["f32.1", "F41.1", "F32.1"],
     });
-    expect((await api.doku.liste({ patientId }))[0]?.diagnoseIcd10).toBe("F32.1");
+    expect((await api.doku.liste({ patientId }))[0]?.diagnoseIcd10).toBe("F32.1, F41.1");
+
+    // Transkript getrennt gespeichert; Löschen legt nur in den Papierkorb.
+    const { id: notizId } = await api.doku.anlegen({
+      patientId,
+      art: "notiz",
+      inhalt: "- Thema: Schlaf",
+      transkript: "Heute ging es um Schlaf.",
+      diagnoseIcd10: ["F51.0"],
+    });
+    const mitTranskript = (await api.doku.liste({ patientId })).find((e) => e.id === notizId);
+    expect(mitTranskript?.transkript).toBe("Heute ging es um Schlaf.");
+    await api.doku.loeschen({ id: notizId });
+    const geloescht = (await api.doku.liste({ patientId })).find((e) => e.id === notizId);
+    expect(geloescht?.geloeschtAm).toBeInstanceOf(Date);
+    await api.doku.wiederherstellen({ id: notizId });
+    expect(
+      (await api.doku.liste({ patientId })).find((e) => e.id === notizId)?.geloeschtAm,
+    ).toBeNull();
+    await api.doku.loeschen({ id: notizId });
 
     const offen = await api.honorarnoten.offen({ patientId });
     expect(offen).toHaveLength(1);

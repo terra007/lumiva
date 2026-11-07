@@ -47,7 +47,8 @@ export default async function Einwilligung({ params }: PageProps<"/druck/einwill
         </li>
         <li>
           Die Tonaufnahme wird nicht gespeichert und sofort nach der Verarbeitung gelöscht.
-          Gespeichert wird nur der von der Therapeut:in geprüfte Dokumentationseintrag,
+          Gespeichert werden der von der Therapeut:in geprüfte Dokumentationseintrag und, wenn sie
+          es behält, das Transkript (der aufgenommene Text) als Teil der Dokumentation,
           verschlüsselt und unter Verschwiegenheit (§ 37 Psychotherapiegesetz 2024).
         </li>
         <li>

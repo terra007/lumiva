@@ -20,6 +20,7 @@ const FELDNAMEN: Record<string, string> = {
   iban: "IBAN",
   inhalt: "Text",
   diagnoseIcd10: "Diagnose",
+  transkript: "Transkript",
   titel: "Titel",
   terminIds: "Termine",
 };
@@ -205,7 +206,11 @@ export async function dokuAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
       terminId: optional(d, "terminId"),
       art: s(d, "art") as "verlauf",
       inhalt: s(d, "inhalt"),
-      diagnoseIcd10: optional(d, "diagnoseIcd10"),
+      diagnoseIcd10: d
+        .getAll("diagnoseIcd10")
+        .map(String)
+        .filter((c) => c.trim()),
+      transkript: optional(d, "transkript"),
     }),
   );
 }
@@ -214,6 +219,14 @@ export async function dokuBearbeiten(_: Ergebnis, d: FormData): Promise<Ergebnis
   return ausfuehren(async () =>
     (await api()).doku.bearbeiten({ id: s(d, "id"), inhalt: s(d, "inhalt") }),
   );
+}
+
+export async function dokuLoeschen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).doku.loeschen({ id: s(d, "id") }));
+}
+
+export async function dokuWiederherstellen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).doku.wiederherstellen({ id: s(d, "id") }));
 }
 
 // Honorarnoten

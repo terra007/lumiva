@@ -11,8 +11,8 @@ export const kiRouter = router({
   verfuegbar: therapeutisch.query(() => kiKonfiguration() !== null),
 
   /**
-   * Aufnahme zu Doku-Entwurf. Gespeichert wird nichts: weder Aufnahme noch Transkript.
-   * Das Transkript kommt mit, damit die Therapeut:in den Entwurf daran prüfen kann.
+   * Aufnahme zu Doku-Entwurf. Hier wird nichts gespeichert: die Aufnahme nie, das Transkript
+   * nur, wenn die Therapeut:in es mit dem geprüften Eintrag speichert (doku.anlegen).
    * Den Entwurf prüft und speichert die Therapeut:in selbst als Doku-Eintrag.
    */
   entwurf: therapeutisch
@@ -56,7 +56,6 @@ export const kiRouter = router({
           });
         }
         const entwurf = await dokuEntwurf(k, transkript, input.art, input.modus);
-        // Das Transkript geht zur Kontrolle zurück, gespeichert wird es auch hier nicht.
         return { transkript, entwurf };
       } catch (e) {
         if (e instanceof KiFehler) {
