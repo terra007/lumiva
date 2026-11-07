@@ -1,7 +1,10 @@
 import type { Datenbank } from "@lumiva/db";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { ZodError } from "zod";
+import { ZodError, z } from "zod";
+
+// Fehlermeldungen der Eingabeprüfung auf Deutsch.
+z.config(z.locales.de());
 
 export type Rolle = "inhaber" | "therapeut" | "assistenz";
 

@@ -30,7 +30,7 @@ const stammdaten = z.object({
     .transform((s) => s.replace(/\s/g, ""))
     .refine(
       (s) => s === "" || istGueltigeSvNummer(s),
-      "Sozialversicherungsnummer ungültig (10 Ziffern, Prüfziffer)",
+      "ungültig. Bitte prüfen: 10 Ziffern, die vierte ist eine Prüfziffer.",
     ),
   versicherungstraeger: z.enum(VERSICHERUNGSTRAEGER),
   kontakt: kontaktSchema,

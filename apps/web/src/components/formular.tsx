@@ -1,5 +1,5 @@
 "use client";
-import { type ReactNode, useActionState, useEffect, useRef } from "react";
+import { type ReactNode, startTransition, useActionState, useEffect, useRef } from "react";
 import type { Ergebnis } from "@/server/aktionen";
 
 type Aktion = (vorher: Ergebnis, daten: FormData) => Promise<Ergebnis>;
@@ -27,7 +27,17 @@ export function Formular({
     if (zuruecksetzen && ergebnis?.ok) ref.current?.reset();
   }, [ergebnis, zuruecksetzen]);
   return (
-    <form ref={ref} action={ausfuehren} className={className}>
+    <form
+      ref={ref}
+      // Nicht über action={…}: React leert sonst nach jedem Absenden das Formular,
+      // auch bei einem Fehler, und alle Eingaben wären weg.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const daten = new FormData(e.currentTarget);
+        startTransition(() => ausfuehren(daten));
+      }}
+      className={className}
+    >
       {children}
       {ergebnis?.fehler && (
         <p
