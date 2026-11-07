@@ -190,7 +190,13 @@ export async function zahlungAbgleichen(
       .where(and(eq(schema.zahlungen.id, zahlung.id), eq(schema.zahlungen.status, "offen")))
       .returning();
     // Schon von einem parallelen Abgleich (Webhook und Abfrage) erledigt.
-    if (!aktualisiert) return neu;
+    if (!aktualisiert) {
+      const [gespeichert] = await tx
+        .select({ status: schema.zahlungen.status })
+        .from(schema.zahlungen)
+        .where(eq(schema.zahlungen.id, zahlung.id));
+      return gespeichert?.status ?? neu;
+    }
     const txDb = tx as unknown as Datenbank;
     if (neu !== "bezahlt") {
       await protokoll(txDb, zahlung.praxisId, `zahlung_${neu}`, zahlung.honorarnoteId, {
