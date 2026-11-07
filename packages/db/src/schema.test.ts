@@ -1,16 +1,13 @@
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeAll, describe, expect, it } from "vitest";
+import { type Datenbank, datenbankVerbinden } from "./client";
 import { naechsteHonorarnoteNummer } from "./nummernkreis";
 import * as schema from "./schema";
 
-const db = drizzle(new PGlite(), { schema, casing: "snake_case" });
+let db: Datenbank;
 let praxisId: string;
 
 beforeAll(async () => {
-  await migrate(db, { migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)) });
+  db = await datenbankVerbinden({ art: "pglite" });
   const [praxis] = await db
     .insert(schema.praxen)
     .values({ name: "Praxis Test", anschrift: "Wien", datenschluesselEnc: "x" })

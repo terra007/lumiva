@@ -65,3 +65,34 @@ export type KostenzuschussHonorarnote = z.infer<typeof kostenzuschussHonorarnote
 export function summeCent(note: Pick<KostenzuschussHonorarnote, "sitzungen">): number {
   return note.sitzungen.reduce((s, x) => s + x.honorarCent, 0);
 }
+
+/** Inhalt einer ausgestellten Honorarnote. Wird verschlüsselt und unveränderlich gespeichert. */
+export type HonorarnoteInhalt = {
+  nummer: string;
+  ausstellungsdatum: string;
+  praxis: { name: string; anschrift: string; telefon: string | null; email: string | null; iban: string | null };
+  therapeut: { name: string; berufsbezeichnung: string | null };
+  patient: {
+    vorname: string;
+    nachname: string;
+    geburtsdatum: string;
+    svNummer: string | null;
+    versicherungstraeger: string;
+    anschrift: string | null;
+  };
+  diagnoseIcd10: string | null;
+  sitzungen: { datum: string; dauerMinuten: number; bezeichnung: string; honorarCent: number }[];
+  summeCent: number;
+};
+
+/** Welche Angaben für den Kostenzuschuss noch fehlen. Leer heißt: vollständig. */
+export function fehlendeKostenzuschussAngaben(inhalt: HonorarnoteInhalt): string[] {
+  if (inhalt.patient.versicherungstraeger === "privat") return [];
+  const fehlt: string[] = [];
+  if (!inhalt.patient.svNummer || !istGueltigeSvNummer(inhalt.patient.svNummer)) {
+    fehlt.push("gültige Sozialversicherungsnummer");
+  }
+  if (!inhalt.diagnoseIcd10) fehlt.push("Diagnose (ICD-10)");
+  if (inhalt.sitzungen.length === 0) fehlt.push("mindestens eine Sitzung");
+  return fehlt;
+}

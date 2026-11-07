@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fehlendeKostenzuschussAngaben,
   formatEuro,
   formatHonorarnoteNummer,
   istGueltigeSvNummer,
@@ -132,5 +133,46 @@ describe("loeschbarAb", () => {
   });
   it("lehnt Zeitpunkte statt Kalenderdaten ab", () => {
     expect(() => loeschbarAb("2026-03-15T00:00:00+01:00")).toThrow();
+  });
+});
+
+describe("fehlendeKostenzuschussAngaben", () => {
+  const inhalt = {
+    nummer: "2026-0001",
+    ausstellungsdatum: "2026-11-07",
+    praxis: { name: "P", anschrift: "Wien", telefon: null, email: null, iban: null },
+    therapeut: { name: "T", berufsbezeichnung: null },
+    patient: {
+      vorname: "A",
+      nachname: "B",
+      geburtsdatum: "1980-01-01",
+      svNummer: "1237010180",
+      versicherungstraeger: "oegk",
+      anschrift: null,
+    },
+    diagnoseIcd10: "F32.1",
+    sitzungen: [{ datum: "2026-11-01", dauerMinuten: 50, bezeichnung: "Einzel", honorarCent: 9000 }],
+    summeCent: 9000,
+  };
+  it("ist leer bei vollständigen Angaben", () => {
+    expect(fehlendeKostenzuschussAngaben(inhalt)).toEqual([]);
+  });
+  it("nennt fehlende SV-Nummer und Diagnose", () => {
+    expect(
+      fehlendeKostenzuschussAngaben({
+        ...inhalt,
+        diagnoseIcd10: null,
+        patient: { ...inhalt.patient, svNummer: null },
+      }),
+    ).toEqual(["gültige Sozialversicherungsnummer", "Diagnose (ICD-10)"]);
+  });
+  it("verlangt bei Selbstzahler:innen nichts", () => {
+    expect(
+      fehlendeKostenzuschussAngaben({
+        ...inhalt,
+        diagnoseIcd10: null,
+        patient: { ...inhalt.patient, svNummer: null, versicherungstraeger: "privat" },
+      }),
+    ).toEqual([]);
   });
 });

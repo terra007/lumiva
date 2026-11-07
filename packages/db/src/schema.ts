@@ -63,6 +63,9 @@ export const praxen = pgTable("praxen", {
   id: id(),
   name: text().notNull(),
   anschrift: text().notNull(),
+  telefon: text(),
+  email: text(),
+  iban: text(),
   /** Datenschlüssel der Praxis, verschlüsselt mit dem Hauptschlüssel des Servers. */
   datenschluesselEnc: text().notNull(),
   erstelltAm: erstelltAm(),
@@ -76,6 +79,8 @@ export const mitgliedschaften = pgTable(
       .references(() => praxen.id),
     benutzerId: text().notNull(),
     rolle: rolle().notNull(),
+    /** Wie die Person auf der Honorarnote steht, z. B. "Psychotherapeutin (Verhaltenstherapie)". */
+    berufsbezeichnung: text(),
     /** § 45 Abs. 2 PThG 2024: Belehrung von Hilfspersonen über die Verschwiegenheit. */
     verschwiegenheitBelehrtAm: timestamp({ withTimezone: true }),
     erstelltAm: erstelltAm(),
@@ -281,3 +286,57 @@ export const protokoll = pgTable(
   },
   (t) => [index().on(t.praxisId, t.zeitpunkt), index().on(t.objektId)],
 );
+
+/*
+ * Tabellen der Anmeldung (Better Auth). Namen und Felder folgen dem Better-Auth-Kernschema.
+ * benutzerId in den Praxis-Tabellen verweist auf user.id.
+ */
+export const user = pgTable("user", {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  email: text().notNull().unique(),
+  emailVerified: boolean().notNull().default(false),
+  image: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export const session = pgTable("session", {
+  id: text().primaryKey(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  token: text().notNull().unique(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  ipAddress: text(),
+  userAgent: text(),
+  userId: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const account = pgTable("account", {
+  id: text().primaryKey(),
+  accountId: text().notNull(),
+  providerId: text().notNull(),
+  userId: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text(),
+  refreshToken: text(),
+  idToken: text(),
+  accessTokenExpiresAt: timestamp({ withTimezone: true }),
+  refreshTokenExpiresAt: timestamp({ withTimezone: true }),
+  scope: text(),
+  password: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export const verification = pgTable("verification", {
+  id: text().primaryKey(),
+  identifier: text().notNull(),
+  value: text().notNull(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
