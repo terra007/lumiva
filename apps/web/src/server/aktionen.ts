@@ -3,7 +3,7 @@ import { nutzerMeldung } from "@lumiva/api";
 import { wienZuDate } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { ZodError } from "zod";
 import { api } from "./lumiva";
 
@@ -43,9 +43,10 @@ async function ausfuehren(fn: () => Promise<unknown>): Promise<Ergebnis> {
   try {
     await fn();
   } catch (e) {
-    const text = fehlertext(e);
-    if (text) return { fehler: text };
-    throw e;
+    // Umleitungen von Next.js weiterreichen, alles andere als Meldung im Formular zeigen,
+    // damit die Eingaben auch bei unerwarteten Fehlern erhalten bleiben.
+    unstable_rethrow(e);
+    return { fehler: fehlertext(e) ?? "Etwas ist schiefgelaufen. Bitte versuche es erneut." };
   }
   revalidatePath("/", "layout");
   return { ok: true };
