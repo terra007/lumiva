@@ -1,0 +1,69 @@
+# LUMIVA auf einem eigenen Server (z. B. IONOS Cloud Server, Ubuntu 24.04).
+# Alles läuft auf diesem einen Server; nach außen offen ist nur Caddy (HTTPS, Port 80/443).
+# Anleitung: deploy/ionos/README.md
+
+services:
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      LUMIVA_DOMAIN: ${LUMIVA_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-daten:/data
+    depends_on: [web]
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/ionos/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://lumiva:${POSTGRES_PASSWORT}@datenbank:5432/lumiva
+      LUMIVA_HAUPTSCHLUESSEL: ${LUMIVA_HAUPTSCHLUESSEL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://${LUMIVA_DOMAIN}
+      LUMIVA_HERKUENFTE: https://${LUMIVA_DOMAIN}
+      # KI nur über die beiden Dienste unten, im internen Netz dieses Servers.
+      LUMIVA_KI_TRANSKRIPTION_URL: http://whisper:8000/v1
+      LUMIVA_KI_TRANSKRIPTION_MODELL: ${WHISPER_MODELL}
+      LUMIVA_KI_SPRACHMODELL_URL: http://ollama:11434/v1
+      LUMIVA_KI_SPRACHMODELL: ${SPRACHMODELL}
+    depends_on:
+      datenbank:
+        condition: service_healthy
+
+  datenbank:
+    image: postgres:18.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lumiva
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORT}
+      POSTGRES_DB: lumiva
+    volumes:
+      - datenbank:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumiva"]
+      interval: 5s
+      retries: 20
+
+  # Sprache zu Text (Whisper, frei), OpenAI-kompatible Schnittstelle, ohne Internetzugriff nach dem Modell-Download.
+  whisper:
+    image: ghcr.io/speaches-ai/speaches:0.8.3-cpu
+    restart: unless-stopped
+    volumes:
+      - whisper-modelle:/home/ubuntu/.cache/huggingface/hub
+
+  # Freies Sprachmodell für den Doku-Entwurf.
+  ollama:
+    image: ollama/ollama:0.40.15
+    restart: unless-stopped
+    volumes:
+      - ollama-modelle:/root/.ollama
+
+volumes:
+  caddy-daten:
+  datenbank:
+  whisper-modelle:
+  ollama-modelle:

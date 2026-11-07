@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AktionsKnopf, Feld, Formular } from "@/components/formular";
+import { KiAufnahme } from "@/components/ki-aufnahme";
 import { NotenStatus } from "@/components/noten-status";
 import {
   DOKU_ART,
@@ -28,7 +29,7 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
   const darfAkte = ich.praxis?.rolle !== "assistenz";
   const jetzt = new Date();
   const p = await lumiva.patienten.details({ id });
-  const [termine, doku, offen, noten, aufgaben] = await Promise.all([
+  const [termine, doku, offen, noten, aufgaben, kiVerfuegbar] = await Promise.all([
     lumiva.termine.zeitraum({
       von: new Date(jetzt.getTime() - 300 * 24 * 60 * 60_000),
       bis: new Date(jetzt.getTime() + 90 * 24 * 60 * 60_000),
@@ -38,6 +39,7 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
     lumiva.honorarnoten.offen({ patientId: id }),
     lumiva.honorarnoten.liste({ patientId: id }),
     lumiva.aufgaben.liste({ patientId: id }),
+    darfAkte ? lumiva.ki.verfuegbar() : Promise.resolve(false),
   ]);
   const vergangen = termine.filter((t) => t.beginn < jetzt).reverse();
   const kommend = termine.filter((t) => t.beginn >= jetzt);
@@ -130,6 +132,12 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
                   </label>
                   <Feld name="diagnoseIcd10" label="Diagnose (ICD-10)" placeholder="F32.1" />
                 </div>
+                {kiVerfuegbar && (
+                  <KiAufnahme
+                    patientId={p.id}
+                    sitzungErlaubt={p.kiAufnahmeEinwilligungAm !== null}
+                  />
+                )}
                 <label className="etikett">
                   Eintrag
                   <textarea
@@ -226,7 +234,7 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
 
           {darfAkte && (
             <section className="karte flex flex-col gap-4">
-              <h2 className="font-semibold">Kostenzuschuss</h2>
+              <h2 className="font-semibold">Kostenzuschuss und Einwilligung</h2>
               <Formular
                 aktion={bestaetigungenSpeichern}
                 knopf="Speichern"
@@ -245,6 +253,25 @@ export default async function PatientAkte({ params }: PageProps<"/patienten/[id]
                   typ="date"
                   wert={p.bewilligungAm}
                 />
+                {kiVerfuegbar && (
+                  <Feld
+                    name="kiAufnahmeEinwilligungAm"
+                    label="Einwilligung Sitzungsaufnahme vom"
+                    typ="date"
+                    wert={p.kiAufnahmeEinwilligungAm}
+                    hinweis="Nur mit unterschriebener Einwilligung eintragen."
+                  />
+                )}
+                {kiVerfuegbar && (
+                  <a
+                    href={`/druck/einwilligung/${p.id}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="verweis text-sm"
+                  >
+                    Einwilligung zum Unterschreiben drucken
+                  </a>
+                )}
               </Formular>
             </section>
           )}

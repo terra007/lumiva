@@ -2,6 +2,7 @@ import { aufgabenRouter } from "./routers/aufgaben";
 import { demoRouter } from "./routers/demo";
 import { dokuRouter } from "./routers/doku";
 import { honorarnotenRouter } from "./routers/honorarnoten";
+import { kiRouter } from "./routers/ki";
 import { patientenRouter } from "./routers/patienten";
 import { praxisRouter } from "./routers/praxis";
 import { termineRouter } from "./routers/termine";
@@ -18,6 +19,7 @@ export const appRouter = router({
   aufgaben: aufgabenRouter,
   uebersicht: uebersichtRouter,
   demo: demoRouter,
+  ki: kiRouter,
 });
 
 export type AppRouter = typeof appRouter;

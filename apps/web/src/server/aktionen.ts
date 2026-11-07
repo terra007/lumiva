@@ -139,6 +139,10 @@ export async function bestaetigungenSpeichern(_: Ergebnis, d: FormData): Promise
       id: s(d, "id"),
       aerztlicheBestaetigungAm: s(d, "aerztlicheBestaetigungAm") || null,
       bewilligungAm: s(d, "bewilligungAm") || null,
+      // Feld gibt es nur, wenn die KI eingerichtet ist; sonst unverändert lassen.
+      kiAufnahmeEinwilligungAm: d.has("kiAufnahmeEinwilligungAm")
+        ? s(d, "kiAufnahmeEinwilligungAm") || null
+        : undefined,
     }),
   );
 }

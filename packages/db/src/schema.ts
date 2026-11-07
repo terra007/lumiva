@@ -105,6 +105,8 @@ export const patienten = pgTable(
     status: patientStatus().notNull().default("aktiv"),
     aerztlicheBestaetigungAm: date(),
     bewilligungAm: date(),
+    /** Schriftliche Einwilligung zur Aufnahme von Sitzungen für die KI-Doku (DSGVO Art. 9 Abs. 2 lit. a). */
+    kiAufnahmeEinwilligungAm: date(),
     behandlungsende: date(),
     /** Ab diesem Tag darf die Akte gelöscht werden (Aufbewahrungsfrist). */
     loeschbarAb: date(),
