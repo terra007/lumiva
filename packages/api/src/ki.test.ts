@@ -87,13 +87,17 @@ describe("KI-Doku", () => {
       mimeType: "audio/webm;codecs=opus",
     };
     expect(await lumiva.ki.entwurf({ ...eingabe, modus: "diktat" })).toEqual({
+      transkript: "Thema heute war Schlaf.",
       entwurf: "Thema:\n- Schlaf",
     });
     expect(aufrufe.map((a) => a.pfad)).toEqual(["/v1/audio/transcriptions", "/api/chat"]);
     expect(aufrufe[0]?.body).toMatch(/name="language"\r\n\r\nde/);
+    expect(aufrufe[0]?.body).toMatch(/name="temperature"\r\n\r\n0/);
+    expect(aufrufe[0]?.body).toMatch(/name="vad_filter"\r\n\r\ntrue/);
     const chat = JSON.parse(aufrufe[1]?.body ?? "{}");
     expect(chat.model).toBe("qwen2.5:7b-instruct"); // leere Variable fällt auf die Voreinstellung zurück
     expect(chat.options.num_ctx).toBeGreaterThanOrEqual(32_768);
+    expect(chat.options.temperature).toBe(0);
     expect(chat.messages[1].content).toContain("Thema heute war Schlaf.");
 
     await expect(lumiva.ki.entwurf({ ...eingabe, modus: "sitzung" })).rejects.toMatchObject({

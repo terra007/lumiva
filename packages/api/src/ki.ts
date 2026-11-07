@@ -101,6 +101,10 @@ export async function transkribieren(
   form.append("model", k.transkriptionModell);
   form.append("language", "de");
   form.append("response_format", "json");
+  // Ohne Zufall und mit Sprach-Erkennung (VAD): Whisper erfindet sonst in Pausen gern Sätze
+  // („Untertitel im Auftrag des ZDF“), die dann im Entwurf landen.
+  form.append("temperature", "0");
+  form.append("vad_filter", "true");
   const { text } = (await anfrage(
     `${k.transkriptionUrl}/audio/transcriptions`,
     new Request("http://lumiva/", { method: "POST", body: form }),
@@ -119,15 +123,19 @@ const ART_TEXT: Record<DokuArt, string> = {
 const QUELLE = {
   diktat: "Die Quelle ist ihr eigenes Diktat nach der Sitzung.",
   sitzung:
-    "Die Quelle ist das Transkript der ganzen Sitzung ohne Sprecherkennzeichnung. Fasse zusammen, zitiere nicht wörtlich.",
+    "Die Quelle ist das Transkript der ganzen Sitzung ohne Sprecherkennzeichnung. Zitiere nicht wörtlich.",
 } as const;
 
 const ANWEISUNG = `Du hilfst einer Psychotherapeutin in Österreich bei der Dokumentation (§ 18 PThG 2024).
-Aus der Quelle erstellst du einen sachlichen, knappen Entwurf auf Deutsch, in der dritten Person
-über die Patientin bzw. den Patienten. Gliedere in diese Abschnitte, jeweils mit Überschrift und Stichpunkten:
-Thema, Befinden und Verlauf, Interventionen, Vereinbarungen.
-Regeln: Verwende nur Inhalte aus der Quelle und erfinde nichts. Fehlt etwas, lass den Abschnitt weg.
-Schlage keine Diagnosen vor. Keine Einleitung und kein Schlusssatz, nur der Entwurf.`;
+Fasse die Quelle sachlich und knapp auf Deutsch in Stichpunkten zusammen.
+Strenge Regeln:
+- Gib nur wieder, was in der Quelle ausdrücklich gesagt wird. Ergänze, deute oder vermute nichts.
+- Keine Namen, Daten, Symptome, Methoden, Diagnosen oder Vereinbarungen, die nicht in der Quelle stehen.
+- Behalte die Begriffe der Quelle bei. Eine kurze Quelle ergibt eine kurze Zusammenfassung.
+- Gliedere nur dann in Abschnitte (Thema, Befinden und Verlauf, Interventionen, Vereinbarungen),
+  wenn die Quelle dazu etwas enthält. Leere Abschnitte lässt du weg.
+- Ist die Quelle unverständlich oder ohne fachlichen Inhalt, antworte nur: „Kein verwertbarer Inhalt.“
+- Keine Einleitung und kein Schlusssatz.`;
 
 /** Doku-Entwurf aus dem Transkript. Die Therapeut:in prüft und speichert selbst. */
 export async function dokuEntwurf(
@@ -146,7 +154,7 @@ export async function dokuEntwurf(
       body: JSON.stringify({
         model: k.sprachmodell,
         stream: false,
-        options: { temperature: 0.2, num_ctx: 32_768 },
+        options: { temperature: 0, num_ctx: 32_768 },
         messages: [
           { role: "system", content: `${ANWEISUNG}\n${QUELLE[modus]}` },
           {

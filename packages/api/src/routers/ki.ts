@@ -12,6 +12,7 @@ export const kiRouter = router({
 
   /**
    * Aufnahme zu Doku-Entwurf. Gespeichert wird nichts: weder Aufnahme noch Transkript.
+   * Das Transkript kommt mit, damit die Therapeut:in den Entwurf daran prüfen kann.
    * Den Entwurf prüft und speichert die Therapeut:in selbst als Doku-Eintrag.
    */
   entwurf: therapeutisch
@@ -55,7 +56,8 @@ export const kiRouter = router({
           });
         }
         const entwurf = await dokuEntwurf(k, transkript, input.art, input.modus);
-        return { entwurf };
+        // Das Transkript geht zur Kontrolle zurück, gespeichert wird es auch hier nicht.
+        return { transkript, entwurf };
       } catch (e) {
         if (e instanceof KiFehler) {
           throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: e.message });

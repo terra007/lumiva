@@ -87,6 +87,7 @@ export function KiAufnahme({
     try {
       const antwort = await fetch("/api/ki/entwurf", { method: "POST", body: daten });
       const ergebnis = (await antwort.json().catch(() => ({}))) as {
+        transkript?: string;
         entwurf?: string;
         fehler?: string;
       };
@@ -100,9 +101,13 @@ export function KiAufnahme({
       } else {
         const feld = form?.querySelector<HTMLTextAreaElement>("[name=inhalt]");
         if (feld) {
-          feld.value = feld.value.trim()
-            ? `${feld.value.trim()}\n\n${ergebnis.entwurf}`
-            : ergebnis.entwurf;
+          // Beim Diktat auch das wörtliche Transkript, damit der Entwurf überprüfbar ist.
+          // Bei der Sitzung nicht: Ein wörtliches Sitzungsprotokoll gehört nicht in die Akte.
+          const text =
+            gesendeterModus === "diktat" && ergebnis.transkript
+              ? `Zusammenfassung (KI-Entwurf, bitte prüfen):\n${ergebnis.entwurf}\n\nTranskript des Diktats:\n${ergebnis.transkript}`
+              : ergebnis.entwurf;
+          feld.value = feld.value.trim() ? `${feld.value.trim()}\n\n${text}` : text;
           feld.rows = Math.max(feld.rows, 12);
           feld.focus();
         }

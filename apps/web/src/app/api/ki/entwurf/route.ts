@@ -28,14 +28,14 @@ export async function POST(req: Request) {
     return Response.json({ fehler: "Die Aufnahme ist zu lang." }, { status: 413 });
   }
   try {
-    const { entwurf } = await (await api()).ki.entwurf({
+    const { transkript, entwurf } = await (await api()).ki.entwurf({
       patientId: String(daten.get("patientId") ?? ""),
       art: String(daten.get("art") ?? "verlauf") as "verlauf",
       modus: String(daten.get("modus") ?? "diktat") as "diktat",
       audio: new Uint8Array(await audio.arrayBuffer()),
       mimeType: audio.type || "audio/webm",
     });
-    return Response.json({ entwurf }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ transkript, entwurf }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof TRPCError) {
       return Response.json({ fehler: nutzerMeldung(e) }, { status: getHTTPStatusCodeFromError(e) });
