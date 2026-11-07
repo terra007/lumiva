@@ -108,16 +108,20 @@ export const patienten = pgTable(
   (t) => [index().on(t.praxisId, t.therapeutId), unique().on(t.praxisId, t.id)],
 );
 
-export const sitzungsarten = pgTable("sitzungsarten", {
-  id: id(),
-  praxisId: uuid()
-    .notNull()
-    .references(() => praxen.id),
-  name: text().notNull(),
-  dauerMinuten: integer().notNull(),
-  honorarCent: integer().notNull(),
-  aktiv: boolean().notNull().default(true),
-});
+export const sitzungsarten = pgTable(
+  "sitzungsarten",
+  {
+    id: id(),
+    praxisId: uuid()
+      .notNull()
+      .references(() => praxen.id),
+    name: text().notNull(),
+    dauerMinuten: integer().notNull(),
+    honorarCent: integer().notNull(),
+    aktiv: boolean().notNull().default(true),
+  },
+  (t) => [unique().on(t.praxisId, t.id)],
+);
 
 export const termine = pgTable(
   "termine",
@@ -128,7 +132,7 @@ export const termine = pgTable(
       .references(() => praxen.id),
     patientId: uuid().notNull(),
     therapeutId: text().notNull(),
-    sitzungsartId: uuid().references(() => sitzungsarten.id),
+    sitzungsartId: uuid(),
     beginn: timestamp({ withTimezone: true }).notNull(),
     ende: timestamp({ withTimezone: true }).notNull(),
     status: terminStatus().notNull().default("geplant"),
@@ -143,6 +147,10 @@ export const termine = pgTable(
     index().on(t.patientId),
     unique().on(t.praxisId, t.id),
     gleichePraxis(t, patienten),
+    foreignKey({
+      columns: [t.praxisId, t.sitzungsartId],
+      foreignColumns: [sitzungsarten.praxisId, sitzungsarten.id],
+    }),
   ],
 );
 
@@ -154,7 +162,7 @@ export const dokuEintraege = pgTable(
       .notNull()
       .references(() => praxen.id),
     patientId: uuid().notNull(),
-    terminId: uuid().references(() => termine.id),
+    terminId: uuid(),
     art: eintragArt().notNull(),
     inhaltEnc: text().notNull(),
     diagnoseIcd10Enc: text(),
@@ -162,7 +170,14 @@ export const dokuEintraege = pgTable(
     erstelltAm: erstelltAm(),
     geaendertAm: timestamp({ withTimezone: true }),
   },
-  (t) => [index().on(t.patientId), gleichePraxis(t, patienten)],
+  (t) => [
+    index().on(t.patientId),
+    gleichePraxis(t, patienten),
+    foreignKey({
+      columns: [t.praxisId, t.terminId],
+      foreignColumns: [termine.praxisId, termine.id],
+    }),
+  ],
 );
 
 /** Lückenlose Nummernkreise für Honorarnoten je Praxis und Jahr. */

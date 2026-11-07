@@ -111,7 +111,8 @@ CREATE TABLE "sitzungsarten" (
 	"name" text NOT NULL,
 	"dauer_minuten" integer NOT NULL,
 	"honorar_cent" integer NOT NULL,
-	"aktiv" boolean DEFAULT true NOT NULL
+	"aktiv" boolean DEFAULT true NOT NULL,
+	CONSTRAINT "sitzungsarten_praxisId_id_unique" UNIQUE("praxis_id","id")
 );
 --> statement-breakpoint
 CREATE TABLE "termine" (
@@ -133,8 +134,8 @@ CREATE TABLE "termine" (
 ALTER TABLE "aufgaben" ADD CONSTRAINT "aufgaben_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "aufgaben" ADD CONSTRAINT "aufgaben_praxis_id_patient_id_patienten_praxis_id_id_fk" FOREIGN KEY ("praxis_id","patient_id") REFERENCES "public"."patienten"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "doku_eintraege" ADD CONSTRAINT "doku_eintraege_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "doku_eintraege" ADD CONSTRAINT "doku_eintraege_termin_id_termine_id_fk" FOREIGN KEY ("termin_id") REFERENCES "public"."termine"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "doku_eintraege" ADD CONSTRAINT "doku_eintraege_praxis_id_patient_id_patienten_praxis_id_id_fk" FOREIGN KEY ("praxis_id","patient_id") REFERENCES "public"."patienten"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "doku_eintraege" ADD CONSTRAINT "doku_eintraege_praxis_id_termin_id_termine_praxis_id_id_fk" FOREIGN KEY ("praxis_id","termin_id") REFERENCES "public"."termine"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "honorarnote_positionen" ADD CONSTRAINT "honorarnote_positionen_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "honorarnote_positionen" ADD CONSTRAINT "honorarnote_positionen_praxis_id_honorarnote_id_honorarnoten_praxis_id_id_fk" FOREIGN KEY ("praxis_id","honorarnote_id") REFERENCES "public"."honorarnoten"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "honorarnote_positionen" ADD CONSTRAINT "honorarnote_positionen_praxis_id_termin_id_termine_praxis_id_id_fk" FOREIGN KEY ("praxis_id","termin_id") REFERENCES "public"."termine"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -146,8 +147,8 @@ ALTER TABLE "patienten" ADD CONSTRAINT "patienten_praxis_id_praxen_id_fk" FOREIG
 ALTER TABLE "protokoll" ADD CONSTRAINT "protokoll_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sitzungsarten" ADD CONSTRAINT "sitzungsarten_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "termine" ADD CONSTRAINT "termine_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "termine" ADD CONSTRAINT "termine_sitzungsart_id_sitzungsarten_id_fk" FOREIGN KEY ("sitzungsart_id") REFERENCES "public"."sitzungsarten"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "termine" ADD CONSTRAINT "termine_praxis_id_patient_id_patienten_praxis_id_id_fk" FOREIGN KEY ("praxis_id","patient_id") REFERENCES "public"."patienten"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "termine" ADD CONSTRAINT "termine_praxis_id_sitzungsart_id_sitzungsarten_praxis_id_id_fk" FOREIGN KEY ("praxis_id","sitzungsart_id") REFERENCES "public"."sitzungsarten"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "aufgaben_praxis_id_zustaendig_id_index" ON "aufgaben" USING btree ("praxis_id","zustaendig_id");--> statement-breakpoint
 CREATE INDEX "doku_eintraege_patient_id_index" ON "doku_eintraege" USING btree ("patient_id");--> statement-breakpoint
 CREATE INDEX "honorarnote_positionen_termin_id_index" ON "honorarnote_positionen" USING btree ("termin_id");--> statement-breakpoint
