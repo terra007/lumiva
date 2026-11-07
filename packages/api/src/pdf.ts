@@ -5,7 +5,8 @@ import {
   TRAEGER_NAME,
   UST_BEFREIUNGSVERMERK,
 } from "@lumiva/domain";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, type PDFPage, rgb, StandardFonts } from "pdf-lib";
+import QRCode from "qrcode";
 
 // Zeichen, die Helvetica (WinAnsi) zusätzlich zu Latin-1 darstellen kann.
 const WIN_ANSI_EXTRA = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ");
@@ -32,7 +33,12 @@ export function druckbar(t: string): string {
 /** Honorarnote als PDF, A4, mit allen Angaben für den Kostenzuschuss. */
 export async function honorarnotePdf(
   n: HonorarnoteInhalt,
-  vermerke: { bezahltAm: string | null; storniertAm: string | null },
+  vermerke: {
+    bezahltAm: string | null;
+    storniertAm: string | null;
+    /** Link zur Online-Zahlung (SumUp); erscheint als QR-Code, solange die Note offen ist. */
+    zahllink?: string | null;
+  },
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(`Honorarnote ${n.nummer}`);
@@ -196,5 +202,34 @@ export async function honorarnotePdf(
   y -= 12;
   rechtsbuendig("Unterschrift und Stempel", rechts, { groesse: 8 });
 
+  if (vermerke.zahllink && !vermerke.bezahltAm && !vermerke.storniertAm) {
+    const groesse = 72;
+    qrZeichnen(seite, vermerke.zahllink, links, 70, groesse);
+    y = 70 + groesse - 10;
+    text("Mit Karte bezahlen:", links + groesse + 10, { bold: true, groesse: 9 });
+    y -= 12;
+    text("QR-Code mit dem Handy scannen,", links + groesse + 10, { groesse: 8, farbe: grau });
+    y -= 10;
+    text("sicher bezahlen über SumUp.", links + groesse + 10, { groesse: 8, farbe: grau });
+  }
+
   return doc.save();
+}
+
+/** Zeichnet einen QR-Code als Vektorgrafik (scharf in jeder Druckgröße). */
+function qrZeichnen(seite: PDFPage, inhalt: string, x: number, y: number, groesse: number) {
+  const { modules } = QRCode.create(inhalt, { errorCorrectionLevel: "M" });
+  const modul = groesse / modules.size;
+  for (let zeile = 0; zeile < modules.size; zeile++) {
+    for (let spalte = 0; spalte < modules.size; spalte++) {
+      if (!modules.get(zeile, spalte)) continue;
+      seite.drawRectangle({
+        x: x + spalte * modul,
+        y: y + groesse - (zeile + 1) * modul,
+        width: modul,
+        height: modul,
+        color: rgb(0, 0, 0),
+      });
+    }
+  }
 }

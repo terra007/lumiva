@@ -7,6 +7,7 @@ import { patientenRouter } from "./routers/patienten";
 import { praxisRouter } from "./routers/praxis";
 import { termineRouter } from "./routers/termine";
 import { uebersichtRouter } from "./routers/uebersicht";
+import { zahlungenRouter } from "./routers/zahlungen";
 import { oeffentlich, router } from "./trpc";
 
 export const appRouter = router({
@@ -20,6 +21,7 @@ export const appRouter = router({
   uebersicht: uebersichtRouter,
   demo: demoRouter,
   ki: kiRouter,
+  zahlungen: zahlungenRouter,
 });
 
 export type AppRouter = typeof appRouter;

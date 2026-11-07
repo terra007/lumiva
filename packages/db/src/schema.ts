@@ -262,6 +262,64 @@ export const honorarnotePositionen = pgTable(
   ],
 );
 
+export const zahlungArt = pgEnum("zahlung_art", ["terminal", "online"]);
+export const zahlungStatus = pgEnum("zahlung_status", [
+  "offen",
+  "bezahlt",
+  "fehlgeschlagen",
+  "abgebrochen",
+]);
+
+/**
+ * Zugang der Praxis zu SumUp. Der API-Schlüssel ist kein Gesundheitsdatum, aber ein Geheimnis
+ * und liegt deshalb ebenso verschlüsselt in der Datenbank.
+ */
+export const sumupKonten = pgTable("sumup_konten", {
+  praxisId: uuid()
+    .primaryKey()
+    .references(() => praxen.id),
+  haendlerCode: text().notNull(),
+  apiSchluesselEnc: text().notNull(),
+  /** Für Zahlungen am Terminal (Cloud API): Affiliate-Key und App-ID aus dem SumUp-Dashboard. */
+  affiliateAppId: text(),
+  affiliateSchluesselEnc: text(),
+  terminalId: text(),
+  terminalName: text(),
+  geaendertAm: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Zahlungsversuche über SumUp. An SumUp gehen nur Betrag und Nummer der Honorarnote,
+ * nie Name oder Diagnose. Der Betrag ist eine Kopie der Summe zum Zeitpunkt des Versuchs.
+ */
+export const zahlungen = pgTable(
+  "zahlungen",
+  {
+    id: id(),
+    praxisId: uuid()
+      .notNull()
+      .references(() => praxen.id),
+    honorarnoteId: uuid().notNull(),
+    art: zahlungArt().notNull(),
+    status: zahlungStatus().notNull().default("offen"),
+    betragCent: integer().notNull(),
+    /** Terminal: client_transaction_id; online: ID des Checkouts bei SumUp. */
+    anbieterId: text(),
+    /** Online: Adresse der Zahlungsseite von SumUp, gültig rund 30 Minuten. */
+    zahlseiteUrl: text(),
+    transaktionCode: text(),
+    erstelltAm: erstelltAm(),
+    abgeschlossenAm: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    index().on(t.honorarnoteId),
+    foreignKey({
+      columns: [t.praxisId, t.honorarnoteId],
+      foreignColumns: [honorarnoten.praxisId, honorarnoten.id],
+    }),
+  ],
+);
+
 export const aufgaben = pgTable(
   "aufgaben",
   {

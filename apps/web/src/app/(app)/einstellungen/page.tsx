@@ -1,5 +1,11 @@
-import { Feld, Formular } from "@/components/formular";
-import { praxisSpeichern, sitzungsartSpeichern } from "@/server/aktionen";
+import { AktionsKnopf, Feld, Formular } from "@/components/formular";
+import {
+  praxisSpeichern,
+  sitzungsartSpeichern,
+  sumupSpeichern,
+  sumupTrennen,
+  terminalKoppeln,
+} from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
 
 export default async function Einstellungen() {
@@ -9,6 +15,7 @@ export default async function Einstellungen() {
     lumiva.praxis.sitzungsarten(),
   ]);
   const inhaber = e.rolle === "inhaber";
+  const sumup = inhaber ? await lumiva.zahlungen.einstellungen() : null;
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <h1 className="font-semibold text-3xl tracking-tight">Einstellungen</h1>
@@ -121,6 +128,86 @@ export default async function Einstellungen() {
           </Formular>
         </fieldset>
       </section>
+      {sumup && (
+        <section className="karte flex flex-col gap-4">
+          <h2 className="font-semibold">Kartenzahlung mit SumUp</h2>
+          <p className="text-muted text-sm">
+            Patient:innen zahlen am SumUp-Terminal oder über den QR-Code auf der Honorarnote. An
+            SumUp gehen nur Betrag und Nummer der Honorarnote. Händlercode und API-Schlüssel findest
+            du im SumUp-Dashboard unter Einstellungen → Entwickler. Zum Testen eignet sich ein
+            Sandbox-Konto.
+          </p>
+          <Formular aktion={sumupSpeichern} knopf="Speichern">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Feld name="haendlerCode" label="Händlercode" pflicht wert={sumup.haendlerCode} />
+              <Feld
+                name="apiSchluessel"
+                label="API-Schlüssel"
+                typ="password"
+                autoComplete="off"
+                pflicht={!sumup.apiSchluesselGesetzt}
+                hinweis={
+                  sumup.apiSchluesselGesetzt
+                    ? "Gespeichert. Leer lassen, um ihn zu behalten."
+                    : undefined
+                }
+              />
+            </div>
+            <p className="text-muted text-sm">
+              Nur für das Terminal (SumUp Solo): Affiliate-Key und App-ID aus dem SumUp-Dashboard.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Feld name="affiliateAppId" label="App-ID" wert={sumup.affiliateAppId} />
+              <Feld
+                name="affiliateSchluessel"
+                label="Affiliate-Key"
+                typ="password"
+                autoComplete="off"
+                hinweis={
+                  sumup.affiliateSchluesselGesetzt
+                    ? "Gespeichert. Leer lassen, um ihn zu behalten."
+                    : undefined
+                }
+              />
+            </div>
+          </Formular>
+          {sumup.apiSchluesselGesetzt && (
+            <>
+              <h3 className="font-medium">Terminal</h3>
+              <p className="text-muted text-sm">
+                {sumup.terminalName
+                  ? `Gekoppelt: ${sumup.terminalName}. Mit einem neuen Code koppelst du ein anderes Terminal.`
+                  : "Am Solo: Verbindungen → API → Verbinden. Den angezeigten Code hier eingeben."}
+              </p>
+              <Formular
+                aktion={terminalKoppeln}
+                knopf="Terminal koppeln"
+                knopfKlasse="knopf-zweit"
+                className="flex flex-wrap items-end gap-2"
+                zuruecksetzen
+              >
+                <label className="etikett w-40">
+                  Code
+                  <input name="code" className="eingabe" required autoComplete="off" />
+                </label>
+                <label className="etikett min-w-40 flex-1">
+                  Name
+                  <input name="name" className="eingabe" placeholder="z. B. Empfang" />
+                </label>
+              </Formular>
+              <div>
+                <AktionsKnopf
+                  aktion={sumupTrennen}
+                  felder={{}}
+                  text="SumUp trennen"
+                  klasse="knopf-gefahr"
+                  bestaetigen="SumUp trennen? Schlüssel und Terminal werden aus LUMIVA entfernt."
+                />
+              </div>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

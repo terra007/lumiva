@@ -1,0 +1,1817 @@
+{
+  "id": "7cfa05bc-bc46-4628-bb9d-ade5dbf0e1c5",
+  "prevId": "7d89d47f-a325-4d4f-bf43-a2e405bacd49",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.account": {
+      "name": "account",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_user_id_user_id_fk": {
+          "name": "account_user_id_user_id_fk",
+          "tableFrom": "account",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.aufgaben": {
+      "name": "aufgaben",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_id": {
+          "name": "patient_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zustaendig_id": {
+          "name": "zustaendig_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titel": {
+          "name": "titel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "faellig_am": {
+          "name": "faellig_am",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erledigt_am": {
+          "name": "erledigt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "aufgaben_praxis_id_zustaendig_id_index": {
+          "name": "aufgaben_praxis_id_zustaendig_id_index",
+          "columns": [
+            {
+              "expression": "praxis_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "zustaendig_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "aufgaben_praxis_id_praxen_id_fk": {
+          "name": "aufgaben_praxis_id_praxen_id_fk",
+          "tableFrom": "aufgaben",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "aufgaben_praxis_id_patient_id_patienten_praxis_id_id_fk": {
+          "name": "aufgaben_praxis_id_patient_id_patienten_praxis_id_id_fk",
+          "tableFrom": "aufgaben",
+          "tableTo": "patienten",
+          "columnsFrom": [
+            "praxis_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.doku_eintraege": {
+      "name": "doku_eintraege",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_id": {
+          "name": "patient_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "termin_id": {
+          "name": "termin_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "art": {
+          "name": "art",
+          "type": "eintrag_art",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "inhalt_enc": {
+          "name": "inhalt_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "diagnose_icd10_enc": {
+          "name": "diagnose_icd10_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transkript_enc": {
+          "name": "transkript_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erstellt_von": {
+          "name": "erstellt_von",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "geaendert_am": {
+          "name": "geaendert_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geloescht_am": {
+          "name": "geloescht_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "doku_eintraege_patient_id_index": {
+          "name": "doku_eintraege_patient_id_index",
+          "columns": [
+            {
+              "expression": "patient_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "doku_eintraege_praxis_id_praxen_id_fk": {
+          "name": "doku_eintraege_praxis_id_praxen_id_fk",
+          "tableFrom": "doku_eintraege",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "doku_eintraege_praxis_id_patient_id_patienten_praxis_id_id_fk": {
+          "name": "doku_eintraege_praxis_id_patient_id_patienten_praxis_id_id_fk",
+          "tableFrom": "doku_eintraege",
+          "tableTo": "patienten",
+          "columnsFrom": [
+            "praxis_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "doku_eintraege_praxis_id_termin_id_termine_praxis_id_id_fk": {
+          "name": "doku_eintraege_praxis_id_termin_id_termine_praxis_id_id_fk",
+          "tableFrom": "doku_eintraege",
+          "tableTo": "termine",
+          "columnsFrom": [
+            "praxis_id",
+            "termin_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.honorarnote_positionen": {
+      "name": "honorarnote_positionen",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "honorarnote_id": {
+          "name": "honorarnote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "termin_id": {
+          "name": "termin_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "honorar_cent": {
+          "name": "honorar_cent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "honorarnote_positionen_termin_id_index": {
+          "name": "honorarnote_positionen_termin_id_index",
+          "columns": [
+            {
+              "expression": "termin_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "honorarnote_positionen_praxis_id_praxen_id_fk": {
+          "name": "honorarnote_positionen_praxis_id_praxen_id_fk",
+          "tableFrom": "honorarnote_positionen",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "honorarnote_positionen_praxis_id_honorarnote_id_honorarnoten_praxis_id_id_fk": {
+          "name": "honorarnote_positionen_praxis_id_honorarnote_id_honorarnoten_praxis_id_id_fk",
+          "tableFrom": "honorarnote_positionen",
+          "tableTo": "honorarnoten",
+          "columnsFrom": [
+            "praxis_id",
+            "honorarnote_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "honorarnote_positionen_praxis_id_termin_id_termine_praxis_id_id_fk": {
+          "name": "honorarnote_positionen_praxis_id_termin_id_termine_praxis_id_id_fk",
+          "tableFrom": "honorarnote_positionen",
+          "tableTo": "termine",
+          "columnsFrom": [
+            "praxis_id",
+            "termin_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.honorarnoten": {
+      "name": "honorarnoten",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_id": {
+          "name": "patient_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jahr": {
+          "name": "jahr",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "laufende_nummer": {
+          "name": "laufende_nummer",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ausgestellt_am": {
+          "name": "ausgestellt_am",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "summe_cent": {
+          "name": "summe_cent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bezahlt_am": {
+          "name": "bezahlt_am",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "storniert_am": {
+          "name": "storniert_am",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inhalt_enc": {
+          "name": "inhalt_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "honorarnoten_praxis_id_praxen_id_fk": {
+          "name": "honorarnoten_praxis_id_praxen_id_fk",
+          "tableFrom": "honorarnoten",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "honorarnoten_praxis_id_patient_id_patienten_praxis_id_id_fk": {
+          "name": "honorarnoten_praxis_id_patient_id_patienten_praxis_id_id_fk",
+          "tableFrom": "honorarnoten",
+          "tableTo": "patienten",
+          "columnsFrom": [
+            "praxis_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "honorarnoten_praxisId_jahr_laufendeNummer_unique": {
+          "name": "honorarnoten_praxisId_jahr_laufendeNummer_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "praxis_id",
+            "jahr",
+            "laufende_nummer"
+          ]
+        },
+        "honorarnoten_praxisId_id_unique": {
+          "name": "honorarnoten_praxisId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "praxis_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mitgliedschaften": {
+      "name": "mitgliedschaften",
+      "schema": "",
+      "columns": {
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "benutzer_id": {
+          "name": "benutzer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rolle": {
+          "name": "rolle",
+          "type": "rolle",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "berufsbezeichnung": {
+          "name": "berufsbezeichnung",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verschwiegenheit_belehrt_am": {
+          "name": "verschwiegenheit_belehrt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mitgliedschaften_praxis_id_praxen_id_fk": {
+          "name": "mitgliedschaften_praxis_id_praxen_id_fk",
+          "tableFrom": "mitgliedschaften",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "mitgliedschaften_praxis_id_benutzer_id_pk": {
+          "name": "mitgliedschaften_praxis_id_benutzer_id_pk",
+          "columns": [
+            "praxis_id",
+            "benutzer_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nummernkreise": {
+      "name": "nummernkreise",
+      "schema": "",
+      "columns": {
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jahr": {
+          "name": "jahr",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "letzte_nummer": {
+          "name": "letzte_nummer",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "nummernkreise_praxis_id_praxen_id_fk": {
+          "name": "nummernkreise_praxis_id_praxen_id_fk",
+          "tableFrom": "nummernkreise",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "nummernkreise_praxis_id_jahr_pk": {
+          "name": "nummernkreise_praxis_id_jahr_pk",
+          "columns": [
+            "praxis_id",
+            "jahr"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.patienten": {
+      "name": "patienten",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "therapeut_id": {
+          "name": "therapeut_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vorname_enc": {
+          "name": "vorname_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nachname_enc": {
+          "name": "nachname_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geburtsdatum_enc": {
+          "name": "geburtsdatum_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sv_nummer_enc": {
+          "name": "sv_nummer_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kontakt_enc": {
+          "name": "kontakt_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "versicherungstraeger": {
+          "name": "versicherungstraeger",
+          "type": "versicherungstraeger",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "patient_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'aktiv'"
+        },
+        "aerztliche_bestaetigung_am": {
+          "name": "aerztliche_bestaetigung_am",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bewilligung_am": {
+          "name": "bewilligung_am",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ki_aufnahme_einwilligung_am": {
+          "name": "ki_aufnahme_einwilligung_am",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "behandlungsende": {
+          "name": "behandlungsende",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "loeschbar_ab": {
+          "name": "loeschbar_ab",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "patienten_praxis_id_therapeut_id_index": {
+          "name": "patienten_praxis_id_therapeut_id_index",
+          "columns": [
+            {
+              "expression": "praxis_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "therapeut_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "patienten_praxis_id_praxen_id_fk": {
+          "name": "patienten_praxis_id_praxen_id_fk",
+          "tableFrom": "patienten",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "patienten_praxisId_id_unique": {
+          "name": "patienten_praxisId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "praxis_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.praxen": {
+      "name": "praxen",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anschrift": {
+          "name": "anschrift",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefon": {
+          "name": "telefon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iban": {
+          "name": "iban",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "datenschluessel_enc": {
+          "name": "datenschluessel_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.protokoll": {
+      "name": "protokoll",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "benutzer_id": {
+          "name": "benutzer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aktion": {
+          "name": "aktion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "objekt_typ": {
+          "name": "objekt_typ",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "objekt_id": {
+          "name": "objekt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zeitpunkt": {
+          "name": "zeitpunkt",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "protokoll_praxis_id_zeitpunkt_index": {
+          "name": "protokoll_praxis_id_zeitpunkt_index",
+          "columns": [
+            {
+              "expression": "praxis_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "zeitpunkt",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "protokoll_objekt_id_index": {
+          "name": "protokoll_objekt_id_index",
+          "columns": [
+            {
+              "expression": "objekt_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "protokoll_praxis_id_praxen_id_fk": {
+          "name": "protokoll_praxis_id_praxen_id_fk",
+          "tableFrom": "protokoll",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session": {
+      "name": "session",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_user_id_user_id_fk": {
+          "name": "session_user_id_user_id_fk",
+          "tableFrom": "session",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "session_token_unique": {
+          "name": "session_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sitzungsarten": {
+      "name": "sitzungsarten",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dauer_minuten": {
+          "name": "dauer_minuten",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "honorar_cent": {
+          "name": "honorar_cent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aktiv": {
+          "name": "aktiv",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sitzungsarten_praxis_id_praxen_id_fk": {
+          "name": "sitzungsarten_praxis_id_praxen_id_fk",
+          "tableFrom": "sitzungsarten",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sitzungsarten_praxisId_id_unique": {
+          "name": "sitzungsarten_praxisId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "praxis_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sumup_konten": {
+      "name": "sumup_konten",
+      "schema": "",
+      "columns": {
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "haendler_code": {
+          "name": "haendler_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_schluessel_enc": {
+          "name": "api_schluessel_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "affiliate_app_id": {
+          "name": "affiliate_app_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "affiliate_schluessel_enc": {
+          "name": "affiliate_schluessel_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terminal_id": {
+          "name": "terminal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terminal_name": {
+          "name": "terminal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geaendert_am": {
+          "name": "geaendert_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sumup_konten_praxis_id_praxen_id_fk": {
+          "name": "sumup_konten_praxis_id_praxen_id_fk",
+          "tableFrom": "sumup_konten",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.termine": {
+      "name": "termine",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_id": {
+          "name": "patient_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "therapeut_id": {
+          "name": "therapeut_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sitzungsart_id": {
+          "name": "sitzungsart_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "beginn": {
+          "name": "beginn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ende": {
+          "name": "ende",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "termin_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'geplant'"
+        },
+        "serie_id": {
+          "name": "serie_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "honorar_cent": {
+          "name": "honorar_cent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ausfallhonorar_cent": {
+          "name": "ausfallhonorar_cent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "termine_praxis_id_therapeut_id_beginn_index": {
+          "name": "termine_praxis_id_therapeut_id_beginn_index",
+          "columns": [
+            {
+              "expression": "praxis_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "therapeut_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "beginn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "termine_patient_id_index": {
+          "name": "termine_patient_id_index",
+          "columns": [
+            {
+              "expression": "patient_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "termine_praxis_id_praxen_id_fk": {
+          "name": "termine_praxis_id_praxen_id_fk",
+          "tableFrom": "termine",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "termine_praxis_id_patient_id_patienten_praxis_id_id_fk": {
+          "name": "termine_praxis_id_patient_id_patienten_praxis_id_id_fk",
+          "tableFrom": "termine",
+          "tableTo": "patienten",
+          "columnsFrom": [
+            "praxis_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "termine_praxis_id_sitzungsart_id_sitzungsarten_praxis_id_id_fk": {
+          "name": "termine_praxis_id_sitzungsart_id_sitzungsarten_praxis_id_id_fk",
+          "tableFrom": "termine",
+          "tableTo": "sitzungsarten",
+          "columnsFrom": [
+            "praxis_id",
+            "sitzungsart_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "termine_praxisId_id_unique": {
+          "name": "termine_praxisId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "praxis_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user": {
+      "name": "user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.verification": {
+      "name": "verification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.zahlungen": {
+      "name": "zahlungen",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "praxis_id": {
+          "name": "praxis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "honorarnote_id": {
+          "name": "honorarnote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art": {
+          "name": "art",
+          "type": "zahlung_art",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "zahlung_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'offen'"
+        },
+        "betrag_cent": {
+          "name": "betrag_cent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anbieter_id": {
+          "name": "anbieter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zahlseite_url": {
+          "name": "zahlseite_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaktion_code": {
+          "name": "transaktion_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erstellt_am": {
+          "name": "erstellt_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "abgeschlossen_am": {
+          "name": "abgeschlossen_am",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "zahlungen_honorarnote_id_index": {
+          "name": "zahlungen_honorarnote_id_index",
+          "columns": [
+            {
+              "expression": "honorarnote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "zahlungen_praxis_id_praxen_id_fk": {
+          "name": "zahlungen_praxis_id_praxen_id_fk",
+          "tableFrom": "zahlungen",
+          "tableTo": "praxen",
+          "columnsFrom": [
+            "praxis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "zahlungen_praxis_id_honorarnote_id_honorarnoten_praxis_id_id_fk": {
+          "name": "zahlungen_praxis_id_honorarnote_id_honorarnoten_praxis_id_id_fk",
+          "tableFrom": "zahlungen",
+          "tableTo": "honorarnoten",
+          "columnsFrom": [
+            "praxis_id",
+            "honorarnote_id"
+          ],
+          "columnsTo": [
+            "praxis_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.eintrag_art": {
+      "name": "eintrag_art",
+      "schema": "public",
+      "values": [
+        "erstgespraech",
+        "verlauf",
+        "abschluss",
+        "notiz"
+      ]
+    },
+    "public.patient_status": {
+      "name": "patient_status",
+      "schema": "public",
+      "values": [
+        "aktiv",
+        "pausiert",
+        "abgeschlossen"
+      ]
+    },
+    "public.rolle": {
+      "name": "rolle",
+      "schema": "public",
+      "values": [
+        "inhaber",
+        "therapeut",
+        "assistenz"
+      ]
+    },
+    "public.termin_status": {
+      "name": "termin_status",
+      "schema": "public",
+      "values": [
+        "geplant",
+        "erledigt",
+        "abgesagt",
+        "nicht_erschienen"
+      ]
+    },
+    "public.versicherungstraeger": {
+      "name": "versicherungstraeger",
+      "schema": "public",
+      "values": [
+        "oegk",
+        "bvaeb",
+        "svs",
+        "kfa",
+        "privat",
+        "sonstige"
+      ]
+    },
+    "public.zahlung_art": {
+      "name": "zahlung_art",
+      "schema": "public",
+      "values": [
+        "terminal",
+        "online"
+      ]
+    },
+    "public.zahlung_status": {
+      "name": "zahlung_status",
+      "schema": "public",
+      "values": [
+        "offen",
+        "bezahlt",
+        "fehlgeschlagen",
+        "abgebrochen"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

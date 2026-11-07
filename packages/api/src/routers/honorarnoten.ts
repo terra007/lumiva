@@ -12,6 +12,7 @@ import { honorarnotePdf } from "../pdf";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router, therapeutisch } from "../trpc";
 import { dec, decOpt, enc, patientName, protokollieren } from "../werkzeuge";
+import { sumupKontoLaden, zahllinkUrl } from "../zahlungen";
 import { letzteDiagnose } from "./doku";
 
 type Ctx = Parameters<typeof patientLaden>[0];
@@ -268,9 +269,11 @@ export const honorarnotenRouter = router({
   /** PDF als Base64, damit es über JSON (Web und App) transportiert werden kann. */
   pdf: therapeutisch.input(z.object({ id: z.uuid() })).query(async ({ ctx, input }) => {
     const { note, inhalt } = await noteLaden(ctx, input.id);
+    const sumup = await sumupKontoLaden(ctx.db, ctx.praxis);
     const bytes = await honorarnotePdf(inhalt, {
       bezahltAm: note.bezahltAm,
       storniertAm: note.storniertAm,
+      zahllink: sumup ? zahllinkUrl(ctx.praxis.schluessel, note.id) : null,
     });
     await protokollieren(ctx, "pdf", "honorarnote", note.id);
     return {
