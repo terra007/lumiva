@@ -1,11 +1,4 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
- */
-
 import "@/global.css";
-
-import { Platform } from "react-native";
 
 export const Colors = {
   light: {
@@ -14,6 +7,9 @@ export const Colors = {
     backgroundElement: "#F1EEE6",
     backgroundSelected: "#E4E1D8",
     textSecondary: "#5B6474",
+    akzent: "#D9A441",
+    gefahr: "#B42318",
+    hinweis: "#92400E",
   },
   dark: {
     text: "#ECEAE4",
@@ -21,35 +17,13 @@ export const Colors = {
     backgroundElement: "#1C2029",
     backgroundSelected: "#2A2F3A",
     textSecondary: "#A3AAB6",
+    akzent: "#E8B95C",
+    gefahr: "#FCA5A5",
+    hinweis: "#FCD34D",
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: "system-ui",
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: "ui-serif",
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: "ui-rounded",
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: "ui-monospace",
-  },
-  default: {
-    sans: "normal",
-    serif: "serif",
-    rounded: "normal",
-    mono: "monospace",
-  },
-  web: {
-    sans: "var(--font-display)",
-    serif: "var(--font-serif)",
-    rounded: "var(--font-rounded)",
-    mono: "var(--font-mono)",
-  },
-});
 
 export const Spacing = {
   half: 2,
@@ -61,5 +35,4 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

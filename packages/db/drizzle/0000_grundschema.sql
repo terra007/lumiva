@@ -3,6 +3,22 @@ CREATE TYPE "public"."patient_status" AS ENUM('aktiv', 'pausiert', 'abgeschlosse
 CREATE TYPE "public"."rolle" AS ENUM('inhaber', 'therapeut', 'assistenz');--> statement-breakpoint
 CREATE TYPE "public"."termin_status" AS ENUM('geplant', 'erledigt', 'abgesagt', 'nicht_erschienen');--> statement-breakpoint
 CREATE TYPE "public"."versicherungstraeger" AS ENUM('oegk', 'bvaeb', 'svs', 'kfa', 'privat', 'sonstige');--> statement-breakpoint
+CREATE TABLE "account" (
+	"id" text PRIMARY KEY NOT NULL,
+	"account_id" text NOT NULL,
+	"provider_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"access_token" text,
+	"refresh_token" text,
+	"id_token" text,
+	"access_token_expires_at" timestamp with time zone,
+	"refresh_token_expires_at" timestamp with time zone,
+	"scope" text,
+	"password" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "aufgaben" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"praxis_id" uuid NOT NULL,
@@ -55,6 +71,7 @@ CREATE TABLE "mitgliedschaften" (
 	"praxis_id" uuid NOT NULL,
 	"benutzer_id" text NOT NULL,
 	"rolle" "rolle" NOT NULL,
+	"berufsbezeichnung" text,
 	"verschwiegenheit_belehrt_am" timestamp with time zone,
 	"erstellt_am" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "mitgliedschaften_praxis_id_benutzer_id_pk" PRIMARY KEY("praxis_id","benutzer_id")
@@ -90,6 +107,9 @@ CREATE TABLE "praxen" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"anschrift" text NOT NULL,
+	"telefon" text,
+	"email" text,
+	"iban" text,
 	"datenschluessel_enc" text NOT NULL,
 	"erstellt_am" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -103,6 +123,18 @@ CREATE TABLE "protokoll" (
 	"objekt_id" uuid,
 	"details" jsonb,
 	"zeitpunkt" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"token" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"ip_address" text,
+	"user_agent" text,
+	"user_id" text NOT NULL,
+	CONSTRAINT "session_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
 CREATE TABLE "sitzungsarten" (
@@ -131,6 +163,27 @@ CREATE TABLE "termine" (
 	CONSTRAINT "termine_praxisId_id_unique" UNIQUE("praxis_id","id")
 );
 --> statement-breakpoint
+CREATE TABLE "user" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"image" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+CREATE TABLE "verification" (
+	"id" text PRIMARY KEY NOT NULL,
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "aufgaben" ADD CONSTRAINT "aufgaben_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "aufgaben" ADD CONSTRAINT "aufgaben_praxis_id_patient_id_patienten_praxis_id_id_fk" FOREIGN KEY ("praxis_id","patient_id") REFERENCES "public"."patienten"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "doku_eintraege" ADD CONSTRAINT "doku_eintraege_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -145,6 +198,7 @@ ALTER TABLE "mitgliedschaften" ADD CONSTRAINT "mitgliedschaften_praxis_id_praxen
 ALTER TABLE "nummernkreise" ADD CONSTRAINT "nummernkreise_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "patienten" ADD CONSTRAINT "patienten_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "protokoll" ADD CONSTRAINT "protokoll_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sitzungsarten" ADD CONSTRAINT "sitzungsarten_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "termine" ADD CONSTRAINT "termine_praxis_id_praxen_id_fk" FOREIGN KEY ("praxis_id") REFERENCES "public"."praxen"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "termine" ADD CONSTRAINT "termine_praxis_id_patient_id_patienten_praxis_id_id_fk" FOREIGN KEY ("praxis_id","patient_id") REFERENCES "public"."patienten"("praxis_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

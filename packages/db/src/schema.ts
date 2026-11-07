@@ -63,6 +63,9 @@ export const praxen = pgTable("praxen", {
   id: id(),
   name: text().notNull(),
   anschrift: text().notNull(),
+  telefon: text(),
+  email: text(),
+  iban: text(),
   /** Datenschlüssel der Praxis, verschlüsselt mit dem Hauptschlüssel des Servers. */
   datenschluesselEnc: text().notNull(),
   erstelltAm: erstelltAm(),
@@ -76,6 +79,8 @@ export const mitgliedschaften = pgTable(
       .references(() => praxen.id),
     benutzerId: text().notNull(),
     rolle: rolle().notNull(),
+    /** Wie die Person auf der Honorarnote steht, z. B. "Psychotherapeutin (Verhaltenstherapie)". */
+    berufsbezeichnung: text(),
     /** § 45 Abs. 2 PThG 2024: Belehrung von Hilfspersonen über die Verschwiegenheit. */
     verschwiegenheitBelehrtAm: timestamp({ withTimezone: true }),
     erstelltAm: erstelltAm(),
@@ -100,6 +105,8 @@ export const patienten = pgTable(
     status: patientStatus().notNull().default("aktiv"),
     aerztlicheBestaetigungAm: date(),
     bewilligungAm: date(),
+    /** Schriftliche Einwilligung zur Aufnahme von Sitzungen für die KI-Doku (DSGVO Art. 9 Abs. 2 lit. a). */
+    kiAufnahmeEinwilligungAm: date(),
     behandlungsende: date(),
     /** Ab diesem Tag darf die Akte gelöscht werden (Aufbewahrungsfrist). */
     loeschbarAb: date(),
@@ -165,10 +172,18 @@ export const dokuEintraege = pgTable(
     terminId: uuid(),
     art: eintragArt().notNull(),
     inhaltEnc: text().notNull(),
+    /** Mehrere Codes als „F32.1, F41.1“. */
     diagnoseIcd10Enc: text(),
+    /** Wörtliches Transkript der KI-Aufnahme, wenn die Therapeut:in es mitspeichert. */
+    transkriptEnc: text(),
     erstelltVon: text().notNull(),
     erstelltAm: erstelltAm(),
     geaendertAm: timestamp({ withTimezone: true }),
+    /**
+     * Papierkorb: gelöschte Einträge bleiben wegen der Dokumentations- und Aufbewahrungspflicht
+     * (§ 18 PThG 2024) erhalten und lassen sich wiederherstellen.
+     */
+    geloeschtAm: timestamp({ withTimezone: true }),
   },
   (t) => [
     index().on(t.patientId),
@@ -247,6 +262,64 @@ export const honorarnotePositionen = pgTable(
   ],
 );
 
+export const zahlungArt = pgEnum("zahlung_art", ["terminal", "online"]);
+export const zahlungStatus = pgEnum("zahlung_status", [
+  "offen",
+  "bezahlt",
+  "fehlgeschlagen",
+  "abgebrochen",
+]);
+
+/**
+ * Zugang der Praxis zu SumUp. Der API-Schlüssel ist kein Gesundheitsdatum, aber ein Geheimnis
+ * und liegt deshalb ebenso verschlüsselt in der Datenbank.
+ */
+export const sumupKonten = pgTable("sumup_konten", {
+  praxisId: uuid()
+    .primaryKey()
+    .references(() => praxen.id),
+  haendlerCode: text().notNull(),
+  apiSchluesselEnc: text().notNull(),
+  /** Für Zahlungen am Terminal (Cloud API): Affiliate-Key und App-ID aus dem SumUp-Dashboard. */
+  affiliateAppId: text(),
+  affiliateSchluesselEnc: text(),
+  terminalId: text(),
+  terminalName: text(),
+  geaendertAm: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Zahlungsversuche über SumUp. An SumUp gehen nur Betrag und Nummer der Honorarnote,
+ * nie Name oder Diagnose. Der Betrag ist eine Kopie der Summe zum Zeitpunkt des Versuchs.
+ */
+export const zahlungen = pgTable(
+  "zahlungen",
+  {
+    id: id(),
+    praxisId: uuid()
+      .notNull()
+      .references(() => praxen.id),
+    honorarnoteId: uuid().notNull(),
+    art: zahlungArt().notNull(),
+    status: zahlungStatus().notNull().default("offen"),
+    betragCent: integer().notNull(),
+    /** Terminal: client_transaction_id; online: ID des Checkouts bei SumUp. */
+    anbieterId: text(),
+    /** Online: Adresse der Zahlungsseite von SumUp, gültig rund 30 Minuten. */
+    zahlseiteUrl: text(),
+    transaktionCode: text(),
+    erstelltAm: erstelltAm(),
+    abgeschlossenAm: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    index().on(t.honorarnoteId),
+    foreignKey({
+      columns: [t.praxisId, t.honorarnoteId],
+      foreignColumns: [honorarnoten.praxisId, honorarnoten.id],
+    }),
+  ],
+);
+
 export const aufgaben = pgTable(
   "aufgaben",
   {
@@ -281,3 +354,57 @@ export const protokoll = pgTable(
   },
   (t) => [index().on(t.praxisId, t.zeitpunkt), index().on(t.objektId)],
 );
+
+/*
+ * Tabellen der Anmeldung (Better Auth). Namen und Felder folgen dem Better-Auth-Kernschema.
+ * benutzerId in den Praxis-Tabellen verweist auf user.id.
+ */
+export const user = pgTable("user", {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  email: text().notNull().unique(),
+  emailVerified: boolean().notNull().default(false),
+  image: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export const session = pgTable("session", {
+  id: text().primaryKey(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  token: text().notNull().unique(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  ipAddress: text(),
+  userAgent: text(),
+  userId: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const account = pgTable("account", {
+  id: text().primaryKey(),
+  accountId: text().notNull(),
+  providerId: text().notNull(),
+  userId: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text(),
+  refreshToken: text(),
+  idToken: text(),
+  accessTokenExpiresAt: timestamp({ withTimezone: true }),
+  refreshTokenExpiresAt: timestamp({ withTimezone: true }),
+  scope: text(),
+  password: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export const verification = pgTable("verification", {
+  id: text().primaryKey(),
+  identifier: text().notNull(),
+  value: text().notNull(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});

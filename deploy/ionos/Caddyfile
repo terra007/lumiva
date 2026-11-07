@@ -1,0 +1,11 @@
+{$LUMIVA_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		# Mikrofon nur für LUMIVA selbst (Diktat).
+		Permissions-Policy "microphone=(self), camera=()"
+	}
+	reverse_proxy web:3000
+}
