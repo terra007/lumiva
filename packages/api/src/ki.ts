@@ -105,6 +105,8 @@ export async function transkribieren(
   // („Untertitel im Auftrag des ZDF“), die dann im Entwurf landen.
   form.append("temperature", "0");
   form.append("vad_filter", "true");
+  // Fachwortschatz als Hinweis verbessert die Erkennung, ohne Inhalte vorzugeben.
+  form.append("prompt", "Dokumentation einer Psychotherapie-Sitzung. Patientin, Patient, Therapie.");
   const { text } = (await anfrage(
     `${k.transkriptionUrl}/audio/transcriptions`,
     new Request("http://lumiva/", { method: "POST", body: form }),
@@ -129,24 +131,29 @@ const QUELLE = {
 const ANWEISUNG = `Du hilfst einer Psychotherapeutin in Österreich bei der Dokumentation (§ 18 PThG 2024).
 Fasse die Quelle wirklich zusammen: Verdichte sie auf das Wesentliche, sachlich und knapp auf Deutsch.
 Regeln:
-- Fasse Zusammengehöriges in einem Stichpunkt zusammen. Lass Füllwörter, Wiederholungen,
-  Abschweifungen und Nebensächliches weg. Formuliere knapp und fachlich in eigenen Worten.
-- Die Zusammenfassung ist deutlich kürzer als die Quelle: höchstens etwa ein Drittel ihrer Länge.
-- Inhaltlich gilt: nur, was in der Quelle gesagt wird. Ergänze, vermute oder erfinde nichts,
-  keine Namen, Daten, Symptome, Methoden, Diagnosen oder Vereinbarungen, die dort nicht stehen.
+- Fasse Themen, Interventionen und Vereinbarungen knapp zusammen. Lass Füllwörter, Wiederholungen
+  und Abschweifungen weg. Die Zusammenfassung ist deutlich kürzer als die Quelle.
+- Beobachtetes Verhalten und Befinden gibst du nah am Wortlaut wieder, nur gekürzt
+  (z. B. „kaum gesprochen, Blick oft zu Boden“). Nicht umdeuten, nicht in Fachbegriffe übersetzen.
+- Nur, was in der Quelle gesagt wird. Ergänze, vermute oder erfinde nichts: keine Personen,
+  Gegenstände, Daten, Symptome, Methoden, Diagnosen oder Vereinbarungen, die dort nicht stehen.
 - Deute weder Stimmung, Tonlage noch Gefühle. Übernimm sie nur, wenn die Quelle sie ausdrücklich nennt.
+- Lass keine Ressourcen weg (z. B. unterstützende Personen, Fortschritte, Stärken).
 - Bei längeren Quellen gliedere in Abschnitte mit Überschrift (Thema, Befinden und Verlauf,
-  Interventionen, Vereinbarungen) und lass Abschnitte ohne Inhalt weg.
+  Ressourcen, Interventionen, Vereinbarungen) und lass Abschnitte ohne Inhalt weg.
 - Auch eine sehr kurze Quelle ergibt mindestens einen Stichpunkt.
 - Keine Einleitung und kein Schlusssatz.
 
 Beispiel: Quelle „Also heute ging es eigentlich wieder um die Arbeit, um den Chef, der ihn ständig
-kritisiert, ja, und er schläft deswegen schlecht, wacht nachts oft auf. Wir haben dann eine
-Atemübung gemacht, die hat ihm gut getan, und er will die jetzt jeden Abend machen.“
+kritisiert, ja, und er schläft deswegen schlecht, wacht nachts oft auf. Er hat am Anfang kaum
+gesprochen. Seine Schwester hilft ihm gerade sehr. Wir haben dann eine Atemübung gemacht, die hat
+ihm gut getan, und er will die jetzt jeden Abend machen.“
 Antwort:
-- Thema: Belastung durch Kritik des Vorgesetzten, dadurch Schlafstörungen mit nächtlichem Erwachen
-- Intervention: Atemübung, als hilfreich erlebt
-- Vereinbarung: Atemübung täglich abends`;
+- Thema: ständige Kritik durch den Chef, deswegen schlechter Schlaf, nächtliches Aufwachen
+- Befinden: anfangs kaum gesprochen
+- Ressourcen: Unterstützung durch die Schwester
+- Intervention: Atemübung, hat gut getan
+- Vereinbarung: Atemübung jeden Abend`;
 
 /** Doku-Entwurf aus dem Transkript. Die Therapeut:in prüft und speichert selbst. */
 export async function dokuEntwurf(
