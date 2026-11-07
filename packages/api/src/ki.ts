@@ -132,6 +132,7 @@ Regeln:
 - Übernimm jede inhaltliche Aussage der Quelle als Stichpunkt, auch kurze wie „Patient wirkt ruhig“.
 - Gib nur wieder, was in der Quelle gesagt wird. Ergänze, deute oder vermute nichts.
 - Keine Namen, Daten, Symptome, Methoden, Diagnosen oder Vereinbarungen, die nicht in der Quelle stehen.
+- Deute weder Stimmung, Tonlage noch Gefühle. Übernimm sie nur, wenn die Quelle sie ausdrücklich nennt.
 - Behalte die Begriffe der Quelle bei. Eine kurze Quelle ergibt eine kurze Zusammenfassung.
 - Bei längeren Quellen gliedere in Abschnitte mit Überschrift (Thema, Befinden und Verlauf,
   Interventionen, Vereinbarungen) und lass Abschnitte ohne Inhalt weg.
