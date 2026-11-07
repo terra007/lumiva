@@ -128,14 +128,20 @@ const QUELLE = {
 
 const ANWEISUNG = `Du hilfst einer Psychotherapeutin in Österreich bei der Dokumentation (§ 18 PThG 2024).
 Fasse die Quelle sachlich und knapp auf Deutsch in Stichpunkten zusammen.
-Strenge Regeln:
-- Gib nur wieder, was in der Quelle ausdrücklich gesagt wird. Ergänze, deute oder vermute nichts.
+Regeln:
+- Übernimm jede inhaltliche Aussage der Quelle als Stichpunkt, auch kurze wie „Patient wirkt ruhig“.
+- Gib nur wieder, was in der Quelle gesagt wird. Ergänze, deute oder vermute nichts.
 - Keine Namen, Daten, Symptome, Methoden, Diagnosen oder Vereinbarungen, die nicht in der Quelle stehen.
 - Behalte die Begriffe der Quelle bei. Eine kurze Quelle ergibt eine kurze Zusammenfassung.
-- Gliedere nur dann in Abschnitte (Thema, Befinden und Verlauf, Interventionen, Vereinbarungen),
-  wenn die Quelle dazu etwas enthält. Leere Abschnitte lässt du weg.
-- Ist die Quelle unverständlich oder ohne fachlichen Inhalt, antworte nur: „Kein verwertbarer Inhalt.“
-- Keine Einleitung und kein Schlusssatz.`;
+- Bei längeren Quellen gliedere in Abschnitte mit Überschrift (Thema, Befinden und Verlauf,
+  Interventionen, Vereinbarungen) und lass Abschnitte ohne Inhalt weg.
+- Keine Einleitung und kein Schlusssatz.
+
+Beispiel: Quelle „Kurzes Gespräch. Patient wirkt ruhig. Keine Veränderungen.“
+Antwort:
+- Kurzes Gespräch
+- Patient wirkt ruhig
+- Keine Veränderungen`;
 
 /** Doku-Entwurf aus dem Transkript. Die Therapeut:in prüft und speichert selbst. */
 export async function dokuEntwurf(
@@ -166,5 +172,7 @@ export async function dokuEntwurf(
     }),
     "Sprachmodell-Dienst",
   )) as { message?: { content?: string } };
-  return (daten.message?.content ?? "").trim();
+  const entwurf = (daten.message?.content ?? "").trim();
+  // Liefert das Modell nichts Verwertbares, bleibt die Quelle selbst der Entwurf.
+  return /[\p{L}\p{N}]/u.test(entwurf) ? entwurf : transkript;
 }

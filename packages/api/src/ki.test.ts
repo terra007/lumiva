@@ -24,6 +24,7 @@ async function api() {
 const aufrufe: { pfad: string; body: string }[] = [];
 let attrappe: Server;
 let basis = "";
+let chatAntwort = "Thema:\n- Schlaf";
 
 beforeAll(async () => {
   attrappe = createServer((req, res) => {
@@ -37,7 +38,7 @@ beforeAll(async () => {
       if (req.url === "/v1/audio/transcriptions") {
         res.end(JSON.stringify({ text: "Thema heute war Schlaf." }));
       } else if (req.url === "/api/chat") {
-        res.end(JSON.stringify({ message: { content: "Thema:\n- Schlaf" } }));
+        res.end(JSON.stringify({ message: { content: chatAntwort } }));
       } else {
         res.statusCode = 404;
         res.end("{}");
@@ -112,6 +113,23 @@ describe("KI-Doku", () => {
     expect((await lumiva.ki.entwurf({ ...eingabe, modus: "sitzung" })).entwurf).toBe(
       "Thema:\n- Schlaf",
     );
+  });
+
+  it("nimmt das Transkript, wenn das Modell nur einen leeren Entwurf liefert", async () => {
+    vi.stubEnv("LUMIVA_KI_TRANSKRIPTION_URL", `${basis}/v1`);
+    vi.stubEnv("LUMIVA_KI_SPRACHMODELL_URL", basis);
+    chatAntwort = "-";
+    const lumiva = await api();
+    const [p] = await lumiva.patienten.liste();
+    const ergebnis = await lumiva.ki.entwurf({
+      patientId: p?.id ?? "",
+      art: "verlauf",
+      modus: "diktat",
+      audio: new Uint8Array([1]),
+      mimeType: "audio/webm",
+    });
+    chatAntwort = "Thema:\n- Schlaf";
+    expect(ergebnis.entwurf).toBe("Thema heute war Schlaf.");
   });
 
   it("meldet einen nicht erreichbaren Dienst ohne Inhalte", async () => {
