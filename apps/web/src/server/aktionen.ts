@@ -20,8 +20,11 @@ const FELDNAMEN: Record<string, string> = {
   iban: "IBAN",
   inhalt: "Text",
   diagnoseIcd10: "Diagnose",
+  transkript: "Transkript",
   titel: "Titel",
   terminIds: "Termine",
+  haendlerCode: "Händlercode",
+  code: "Kopplungscode",
 };
 
 function fehlertext(e: unknown): string | null {
@@ -139,6 +142,10 @@ export async function bestaetigungenSpeichern(_: Ergebnis, d: FormData): Promise
       id: s(d, "id"),
       aerztlicheBestaetigungAm: s(d, "aerztlicheBestaetigungAm") || null,
       bewilligungAm: s(d, "bewilligungAm") || null,
+      // Feld gibt es nur, wenn die KI eingerichtet ist; sonst unverändert lassen.
+      kiAufnahmeEinwilligungAm: d.has("kiAufnahmeEinwilligungAm")
+        ? s(d, "kiAufnahmeEinwilligungAm") || null
+        : undefined,
     }),
   );
 }
@@ -201,7 +208,11 @@ export async function dokuAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
       terminId: optional(d, "terminId"),
       art: s(d, "art") as "verlauf",
       inhalt: s(d, "inhalt"),
-      diagnoseIcd10: optional(d, "diagnoseIcd10"),
+      diagnoseIcd10: d
+        .getAll("diagnoseIcd10")
+        .map(String)
+        .filter((c) => c.trim()),
+      transkript: optional(d, "transkript"),
     }),
   );
 }
@@ -210,6 +221,14 @@ export async function dokuBearbeiten(_: Ergebnis, d: FormData): Promise<Ergebnis
   return ausfuehren(async () =>
     (await api()).doku.bearbeiten({ id: s(d, "id"), inhalt: s(d, "inhalt") }),
   );
+}
+
+export async function dokuLoeschen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).doku.loeschen({ id: s(d, "id") }));
+}
+
+export async function dokuWiederherstellen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).doku.wiederherstellen({ id: s(d, "id") }));
 }
 
 // Honorarnoten
@@ -231,6 +250,72 @@ export async function honorarnoteBezahlt(_: Ergebnis, d: FormData): Promise<Erge
 
 export async function honorarnoteStornieren(_: Ergebnis, d: FormData): Promise<Ergebnis> {
   return ausfuehren(async () => (await api()).honorarnoten.stornieren({ id: s(d, "id") }));
+}
+
+// Zahlungen (SumUp)
+
+export async function sumupSpeichern(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).zahlungen.speichern({
+      haendlerCode: s(d, "haendlerCode"),
+      apiSchluessel: optional(d, "apiSchluessel"),
+      affiliateAppId: s(d, "affiliateAppId"),
+      affiliateSchluessel: optional(d, "affiliateSchluessel"),
+    }),
+  );
+}
+
+export async function sumupTrennen(_: Ergebnis): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).zahlungen.trennen());
+}
+
+export async function terminalKoppeln(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).zahlungen.terminalKoppeln({
+      code: s(d, "code"),
+      name: optional(d, "name"),
+    }),
+  );
+}
+
+type ZahlungsStand = { zahlungId?: string; status?: string; fehler?: string };
+
+/** Für die Terminal-Zahlung: liefert Daten statt eines Formular-Ergebnisses. */
+async function abfragen(fn: () => Promise<ZahlungsStand>): Promise<ZahlungsStand> {
+  try {
+    return await fn();
+  } catch (e) {
+    unstable_rethrow(e);
+    return { fehler: fehlertext(e) ?? "Etwas ist schiefgelaufen. Bitte versuche es erneut." };
+  }
+}
+
+export async function terminalZahlungStarten(honorarnoteId: string): Promise<ZahlungsStand> {
+  return abfragen(async () => (await api()).zahlungen.terminalStarten({ honorarnoteId }));
+}
+
+export async function zahlungStatus(zahlungId: string): Promise<ZahlungsStand> {
+  const stand = await abfragen(async () => (await api()).zahlungen.status({ zahlungId }));
+  if (stand.status === "bezahlt") revalidatePath("/", "layout");
+  return stand;
+}
+
+export async function terminalZahlungAbbrechen(zahlungId: string): Promise<ZahlungsStand> {
+  return abfragen(async () => {
+    await (await api()).zahlungen.terminalAbbrechen({ zahlungId });
+    return {};
+  });
+}
+
+export async function zahllinkHolen(
+  honorarnoteId: string,
+): Promise<{ url?: string; fehler?: string }> {
+  try {
+    return await (await api()).zahlungen.link({ honorarnoteId });
+  } catch (e) {
+    unstable_rethrow(e);
+    return { fehler: fehlertext(e) ?? "Etwas ist schiefgelaufen." };
+  }
 }
 
 // Aufgaben

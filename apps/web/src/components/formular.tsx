@@ -128,12 +128,15 @@ export function AktionsKnopf({
   text,
   klasse = "knopf-zweit",
   bestaetigen,
+  titel,
 }: {
   aktion: Aktion;
   felder: Record<string, string>;
-  text: string;
+  text: ReactNode;
   klasse?: string;
   bestaetigen?: string;
+  /** Beschriftung für Knöpfe, die nur ein Symbol zeigen. */
+  titel?: string;
 }) {
   const [ergebnis, ausfuehren, laeuft] = useActionState(aktion, null);
   return (
@@ -147,7 +150,7 @@ export function AktionsKnopf({
       {Object.entries(felder).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <button type="submit" className={klasse} disabled={laeuft}>
+      <button type="submit" className={klasse} disabled={laeuft} title={titel} aria-label={titel}>
         {laeuft ? "…" : text}
       </button>
       {ergebnis?.fehler && (

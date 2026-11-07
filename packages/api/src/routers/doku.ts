@@ -1,12 +1,11 @@
 import { schema } from "@lumiva/db";
+import { ICD10_FORMAT } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { patientLaden } from "../sichtbarkeit";
 import { router, therapeutisch } from "../trpc";
 import { dec, decOpt, enc, protokollieren } from "../werkzeuge";
-
-const ICD10 = /^[A-Z]\d{2}(\.\d{1,2})?$/;
 
 export async function letzteDiagnose(ctx: Parameters<typeof patientLaden>[0], patientId: string) {
   const [z] = await ctx.db
@@ -17,6 +16,7 @@ export async function letzteDiagnose(ctx: Parameters<typeof patientLaden>[0], pa
         eq(schema.dokuEintraege.praxisId, ctx.praxis.id),
         eq(schema.dokuEintraege.patientId, patientId),
         isNotNull(schema.dokuEintraege.diagnoseIcd10Enc),
+        isNull(schema.dokuEintraege.geloeschtAm),
       ),
     )
     .orderBy(desc(schema.dokuEintraege.erstelltAm))
@@ -44,8 +44,10 @@ export const dokuRouter = router({
       art: z.art,
       inhalt: dec(ctx.praxis, "doku_eintraege.inhalt", z.id, z.inhaltEnc),
       diagnoseIcd10: decOpt(ctx.praxis, "doku_eintraege.diagnose_icd10", z.id, z.diagnoseIcd10Enc),
+      transkript: decOpt(ctx.praxis, "doku_eintraege.transkript", z.id, z.transkriptEnc),
       erstelltAm: z.erstelltAm,
       geaendertAm: z.geaendertAm,
+      geloeschtAm: z.geloeschtAm,
     }));
   }),
 
@@ -57,11 +59,17 @@ export const dokuRouter = router({
         art: z.enum(["erstgespraech", "verlauf", "abschluss", "notiz"]),
         inhalt: z.string().trim().min(1).max(20_000),
         diagnoseIcd10: z
-          .string()
-          .trim()
-          .toUpperCase()
-          .refine((s) => s === "" || ICD10.test(s), "ICD-10-Code erwartet, z. B. F32.1")
+          .array(
+            z
+              .string()
+              .trim()
+              .toUpperCase()
+              .regex(ICD10_FORMAT, "ICD-10-Code erwartet, z. B. F32.1"),
+          )
+          .max(10)
           .optional(),
+        /** Wörtliches Transkript der KI-Aufnahme, optional mitgespeichert. */
+        transkript: z.string().trim().max(200_000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -90,8 +98,16 @@ export const dokuRouter = router({
         terminId: input.terminId ?? null,
         art: input.art,
         inhaltEnc: enc(ctx.praxis, "doku_eintraege.inhalt", id, input.inhalt),
-        diagnoseIcd10Enc: input.diagnoseIcd10
-          ? enc(ctx.praxis, "doku_eintraege.diagnose_icd10", id, input.diagnoseIcd10)
+        diagnoseIcd10Enc: input.diagnoseIcd10?.length
+          ? enc(
+              ctx.praxis,
+              "doku_eintraege.diagnose_icd10",
+              id,
+              [...new Set(input.diagnoseIcd10)].join(", "),
+            )
+          : null,
+        transkriptEnc: input.transkript
+          ? enc(ctx.praxis, "doku_eintraege.transkript", id, input.transkript)
           : null,
         erstelltVon: ctx.benutzer.id,
       });
@@ -102,17 +118,7 @@ export const dokuRouter = router({
   bearbeiten: therapeutisch
     .input(z.object({ id: z.uuid(), inhalt: z.string().trim().min(1).max(20_000) }))
     .mutation(async ({ ctx, input }) => {
-      const [e] = await ctx.db
-        .select()
-        .from(schema.dokuEintraege)
-        .where(
-          and(
-            eq(schema.dokuEintraege.id, input.id),
-            eq(schema.dokuEintraege.praxisId, ctx.praxis.id),
-          ),
-        );
-      if (!e) throw new TRPCError({ code: "NOT_FOUND" });
-      await patientLaden(ctx, e.patientId);
+      const e = await eintragLaden(ctx, input.id);
       await ctx.db
         .update(schema.dokuEintraege)
         .set({
@@ -123,4 +129,39 @@ export const dokuRouter = router({
       // Die alte Fassung bleibt im Protokoll nachvollziehbar, ohne Inhalt: nur dass und wann geändert wurde.
       await protokollieren(ctx, "geaendert", "doku", e.id);
     }),
+
+  /**
+   * In den Papierkorb legen. Endgültig gelöscht wird nicht: Die Dokumentation ist aufzubewahren
+   * (§ 18 PThG 2024, Frist siehe AUFBEWAHRUNG_JAHRE in @lumiva/domain).
+   */
+  loeschen: therapeutisch.input(z.object({ id: z.uuid() })).mutation(async ({ ctx, input }) => {
+    const e = await eintragLaden(ctx, input.id);
+    await ctx.db
+      .update(schema.dokuEintraege)
+      .set({ geloeschtAm: new Date() })
+      .where(eq(schema.dokuEintraege.id, e.id));
+    await protokollieren(ctx, "geloescht", "doku", e.id);
+  }),
+
+  wiederherstellen: therapeutisch
+    .input(z.object({ id: z.uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const e = await eintragLaden(ctx, input.id);
+      await ctx.db
+        .update(schema.dokuEintraege)
+        .set({ geloeschtAm: null })
+        .where(eq(schema.dokuEintraege.id, e.id));
+      await protokollieren(ctx, "wiederhergestellt", "doku", e.id);
+    }),
 });
+
+/** Eintrag der eigenen Praxis laden, nur wenn die Person die Akte sehen darf. */
+async function eintragLaden(ctx: Parameters<typeof patientLaden>[0], id: string) {
+  const [e] = await ctx.db
+    .select()
+    .from(schema.dokuEintraege)
+    .where(and(eq(schema.dokuEintraege.id, id), eq(schema.dokuEintraege.praxisId, ctx.praxis.id)));
+  if (!e) throw new TRPCError({ code: "NOT_FOUND" });
+  await patientLaden(ctx, e.patientId);
+  return e;
+}

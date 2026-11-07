@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+**/.expo
+**/dist
+.lumiva-daten
+.git
+.env
+.env.*
+deploy/ionos/.env

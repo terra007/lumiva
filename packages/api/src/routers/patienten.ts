@@ -54,6 +54,7 @@ function entschluesselt(ctx: { praxis: Parameters<typeof dec>[0] }, p: PatientZe
     therapeutId: p.therapeutId,
     aerztlicheBestaetigungAm: p.aerztlicheBestaetigungAm,
     bewilligungAm: p.bewilligungAm,
+    kiAufnahmeEinwilligungAm: p.kiAufnahmeEinwilligungAm,
     behandlungsende: p.behandlungsende,
     loeschbarAb: p.loeschbarAb,
     erstelltAm: p.erstelltAm,
@@ -175,6 +176,7 @@ export const patientenRouter = router({
         id: z.uuid(),
         aerztlicheBestaetigungAm: z.iso.date().nullable(),
         bewilligungAm: z.iso.date().nullable(),
+        kiAufnahmeEinwilligungAm: z.iso.date().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -184,6 +186,7 @@ export const patientenRouter = router({
         .set({
           aerztlicheBestaetigungAm: input.aerztlicheBestaetigungAm,
           bewilligungAm: input.bewilligungAm,
+          kiAufnahmeEinwilligungAm: input.kiAufnahmeEinwilligungAm,
         })
         .where(eq(schema.patienten.id, input.id));
       await protokollieren(ctx, "geaendert", "patient", input.id, { feld: "bestaetigungen" });
