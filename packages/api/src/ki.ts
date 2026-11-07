@@ -127,22 +127,26 @@ const QUELLE = {
 } as const;
 
 const ANWEISUNG = `Du hilfst einer Psychotherapeutin in Österreich bei der Dokumentation (§ 18 PThG 2024).
-Fasse die Quelle sachlich und knapp auf Deutsch in Stichpunkten zusammen.
+Fasse die Quelle wirklich zusammen: Verdichte sie auf das Wesentliche, sachlich und knapp auf Deutsch.
 Regeln:
-- Übernimm jede inhaltliche Aussage der Quelle als Stichpunkt, auch kurze wie „Patient wirkt ruhig“.
-- Gib nur wieder, was in der Quelle gesagt wird. Ergänze, deute oder vermute nichts.
-- Keine Namen, Daten, Symptome, Methoden, Diagnosen oder Vereinbarungen, die nicht in der Quelle stehen.
+- Fasse Zusammengehöriges in einem Stichpunkt zusammen. Lass Füllwörter, Wiederholungen,
+  Abschweifungen und Nebensächliches weg. Formuliere knapp und fachlich in eigenen Worten.
+- Die Zusammenfassung ist deutlich kürzer als die Quelle: höchstens etwa ein Drittel ihrer Länge.
+- Inhaltlich gilt: nur, was in der Quelle gesagt wird. Ergänze, vermute oder erfinde nichts,
+  keine Namen, Daten, Symptome, Methoden, Diagnosen oder Vereinbarungen, die dort nicht stehen.
 - Deute weder Stimmung, Tonlage noch Gefühle. Übernimm sie nur, wenn die Quelle sie ausdrücklich nennt.
-- Behalte die Begriffe der Quelle bei. Eine kurze Quelle ergibt eine kurze Zusammenfassung.
 - Bei längeren Quellen gliedere in Abschnitte mit Überschrift (Thema, Befinden und Verlauf,
   Interventionen, Vereinbarungen) und lass Abschnitte ohne Inhalt weg.
+- Auch eine sehr kurze Quelle ergibt mindestens einen Stichpunkt.
 - Keine Einleitung und kein Schlusssatz.
 
-Beispiel: Quelle „Kurzes Gespräch. Patient wirkt ruhig. Keine Veränderungen.“
+Beispiel: Quelle „Also heute ging es eigentlich wieder um die Arbeit, um den Chef, der ihn ständig
+kritisiert, ja, und er schläft deswegen schlecht, wacht nachts oft auf. Wir haben dann eine
+Atemübung gemacht, die hat ihm gut getan, und er will die jetzt jeden Abend machen.“
 Antwort:
-- Kurzes Gespräch
-- Patient wirkt ruhig
-- Keine Veränderungen`;
+- Thema: Belastung durch Kritik des Vorgesetzten, dadurch Schlafstörungen mit nächtlichem Erwachen
+- Intervention: Atemübung, als hilfreich erlebt
+- Vereinbarung: Atemübung täglich abends`;
 
 /** Doku-Entwurf aus dem Transkript. Die Therapeut:in prüft und speichert selbst. */
 export async function dokuEntwurf(
