@@ -2,13 +2,18 @@ import { wienDatum } from "@lumiva/domain";
 import Link from "next/link";
 import { AktionsKnopf } from "@/components/formular";
 import { NotenStatus } from "@/components/noten-status";
+import { TerminalZahlung, ZahllinkKopieren } from "@/components/sumup-zahlung";
 import { euro, formatDatum } from "@/lib/format";
 import { honorarnoteBezahlt, honorarnoteStornieren } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
 
 export default async function Honorarnoten() {
   const api = await praxisApi();
-  const [noten, ich] = await Promise.all([api.honorarnoten.liste(), api.praxis.ich()]);
+  const [noten, ich, sumup] = await Promise.all([
+    api.honorarnoten.liste(),
+    api.praxis.ich(),
+    api.zahlungen.verfuegbar(),
+  ]);
   // Die PDF enthält die Diagnose; die Assistenz sieht keine Akteninhalte (§ 45 PThG 2024).
   const therapeutisch = ich.praxis?.rolle !== "assistenz";
   const heute = wienDatum(new Date());
@@ -78,6 +83,12 @@ export default async function Honorarnoten() {
                         >
                           PDF
                         </a>
+                      )}
+                      {!n.storniertAm && !n.bezahltAm && sumup.terminal && (
+                        <TerminalZahlung honorarnoteId={n.id} />
+                      )}
+                      {!n.storniertAm && !n.bezahltAm && sumup.online && (
+                        <ZahllinkKopieren honorarnoteId={n.id} />
                       )}
                       {!n.storniertAm &&
                         (n.bezahltAm ? (
