@@ -2,6 +2,7 @@ import { AktionsKnopf, Feld, Formular } from "@/components/formular";
 import {
   praxisSpeichern,
   sitzungsartSpeichern,
+  sumupDemo,
   sumupSpeichern,
   sumupTrennen,
   terminalKoppeln,
@@ -137,15 +138,34 @@ export default async function Einstellungen() {
             du im SumUp-Dashboard unter Einstellungen → Entwickler. Zum Testen eignet sich ein
             Sandbox-Konto.
           </p>
+          {sumup.demo && (
+            <p className="rounded-lg bg-amber-100 px-3 py-2 text-amber-900 text-sm dark:bg-amber-950 dark:text-amber-200">
+              Demo-Modus: Terminal und QR-Zahlung werden nur simuliert, es fließt kein Geld. Für
+              echte Zahlungen unten die Daten deines SumUp-Kontos eintragen.
+            </p>
+          )}
+          {!sumup.demo && sumup.demoErlaubt && (
+            <div className="flex flex-wrap items-center gap-3">
+              <AktionsKnopf aktion={sumupDemo} felder={{}} text="Demo ohne SumUp-Konto" />
+              <span className="text-muted text-sm">
+                Zum Vorführen: simuliert Terminal und QR-Zahlung.
+              </span>
+            </div>
+          )}
           <Formular aktion={sumupSpeichern} knopf="Speichern">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Feld name="haendlerCode" label="Händlercode" pflicht wert={sumup.haendlerCode} />
+              <Feld
+                name="haendlerCode"
+                label="Händlercode"
+                pflicht
+                wert={sumup.demo ? "" : sumup.haendlerCode}
+              />
               <Feld
                 name="apiSchluessel"
                 label="API-Schlüssel"
                 typ="password"
                 autoComplete="off"
-                pflicht={!sumup.apiSchluesselGesetzt}
+                pflicht={!sumup.apiSchluesselGesetzt || sumup.demo}
                 hinweis={
                   sumup.apiSchluesselGesetzt
                     ? "Gespeichert. Leer lassen, um ihn zu behalten."

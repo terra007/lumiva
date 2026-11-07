@@ -2,7 +2,13 @@ import { type Datenbank, datenbankVerbinden, schema } from "@lumiva/db";
 import { neuerSchluessel } from "@lumiva/db/crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createCaller, onlineZahlungStarten, sumupWebhook, zahlseiteLaden } from "./index";
+import {
+  createCaller,
+  demoCheckoutBezahlen,
+  onlineZahlungStarten,
+  sumupWebhook,
+  zahlseiteLaden,
+} from "./index";
 import { kontextErstellen } from "./kontext";
 import { centZuEuro } from "./sumup";
 
@@ -263,5 +269,55 @@ describe("SumUp", () => {
     expect(await api.zahlungen.status({ zahlungId })).toEqual({ status: "fehlgeschlagen" });
     const noten = await api.honorarnoten.liste();
     expect(noten.find((n) => n.id === note.id)?.bezahltAm).toBeNull();
+  });
+});
+
+describe("SumUp-Demo", () => {
+  it("simuliert Terminal und Online-Zahlung ohne Anfrage an SumUp", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const api = createCaller(
+      await kontextFuer({ id: "maria", name: "Mag. Maria Muster", email: "maria@test.at" }),
+    );
+    await api.zahlungen.demoEinschalten();
+    expect(await api.zahlungen.verfuegbar()).toMatchObject({ demo: true, terminal: true });
+    const vorher = sumup.anfragen.length;
+
+    const [patient] = await api.patienten.liste();
+    const [einzel] = (await api.praxis.sitzungsarten()).filter((s) => s.name === "Einzelsitzung");
+    const neueNote = async (tag: string) => {
+      await api.termine.anlegen({
+        patientId: patient?.id ?? "",
+        sitzungsartId: einzel?.id ?? "",
+        beginn: new Date(`${tag}T08:00:00Z`),
+      });
+      const [t] = await api.termine.zeitraum({
+        von: new Date(`${tag}T00:00:00Z`),
+        bis: new Date(`${tag}T23:00:00Z`),
+      });
+      await api.termine.status({ id: t?.id ?? "", status: "erledigt" });
+      return api.honorarnoten.ausstellen({
+        patientId: patient?.id ?? "",
+        terminIds: [t?.id ?? ""],
+      });
+    };
+
+    const terminalNote = await neueNote("2026-11-05");
+    const { zahlungId } = await api.zahlungen.terminalStarten({ honorarnoteId: terminalNote.id });
+    expect(await api.zahlungen.status({ zahlungId })).toEqual({ status: "offen" });
+    vi.setSystemTime(Date.now() + 7_000);
+    expect(await api.zahlungen.status({ zahlungId })).toEqual({ status: "bezahlt" });
+
+    const onlineNote = await neueNote("2026-11-06");
+    const { url } = await api.zahlungen.link({ honorarnoteId: onlineNote.id });
+    const token = url.split("/").pop() ?? "";
+    const start = await onlineZahlungStarten({ db, hauptschluessel, token });
+    if (!("url" in start)) throw new Error(start.fehler);
+    expect(start.url).toContain("/bezahlen/demo-kasse/demo-");
+    const id = start.url.split("/").pop() ?? "";
+    expect(demoCheckoutBezahlen(id)).toBe(`https://lumiva.example.at/bezahlen/${token}`);
+    expect((await zahlseiteLaden({ db, hauptschluessel, token }))?.status).toBe("bezahlt");
+
+    expect(sumup.anfragen.length).toBe(vorher);
+    vi.useRealTimers();
   });
 });

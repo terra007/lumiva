@@ -265,6 +265,10 @@ export async function sumupSpeichern(_: Ergebnis, d: FormData): Promise<Ergebnis
   );
 }
 
+export async function sumupDemo(_: Ergebnis): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).zahlungen.demoEinschalten());
+}
+
 export async function sumupTrennen(_: Ergebnis): Promise<Ergebnis> {
   return ausfuehren(async () => (await api()).zahlungen.trennen());
 }

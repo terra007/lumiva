@@ -12,6 +12,8 @@
  * Gesundheitsdaten, auch nicht in Fehlermeldungen.
  */
 
+import { DEMO_HAENDLERCODE, demoClient } from "./sumup-demo";
+
 const BASIS = "https://api.sumup.com";
 
 export type SumupZugang = {
@@ -44,7 +46,12 @@ export function euroZuCent(euro: number): number {
 
 export type CheckoutStatus = "PENDING" | "FAILED" | "PAID" | "EXPIRED";
 
-export function sumupClient(zugang: SumupZugang, abruf: Abruf = fetch) {
+export function sumupClient(zugang: SumupZugang, abruf: Abruf = fetch): SumupClient {
+  if (zugang.haendlerCode === DEMO_HAENDLERCODE) return demoClient();
+  return echterClient(zugang, abruf);
+}
+
+function echterClient(zugang: SumupZugang, abruf: Abruf) {
   async function anfrage<T>(methode: "GET" | "POST", pfad: string, inhalt?: unknown): Promise<T> {
     let antwort: Response;
     try {
@@ -148,4 +155,4 @@ export function sumupClient(zugang: SumupZugang, abruf: Abruf = fetch) {
   };
 }
 
-export type SumupClient = ReturnType<typeof sumupClient>;
+export type SumupClient = ReturnType<typeof echterClient>;
