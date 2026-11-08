@@ -10,7 +10,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { type Datenbank, schema } from "@lumiva/db";
 import { datenschluesselEntpacken, entschluesseln } from "@lumiva/db/crypto";
 import { formatHonorarnoteNummer, wienDatum } from "@lumiva/domain";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, ne } from "drizzle-orm";
 import { oeffentlicheUrl } from "./adresse";
 import { type Abruf, euroZuCent, SumupFehler, type SumupZugang, sumupClient } from "./sumup";
 
@@ -117,22 +117,233 @@ async function protokoll(
   db: Datenbank,
   praxisId: string,
   aktion: string,
-  objektId: string,
+  objekt: { honorarnoteId: string | null; terminId?: string | null },
   details: Record<string, string | number | boolean>,
 ) {
   await db.insert(schema.protokoll).values({
     praxisId,
     benutzerId: SUMUP_BENUTZER,
     aktion,
-    objektTyp: "honorarnote",
-    objektId,
+    objektTyp: objekt.honorarnoteId ? "honorarnote" : "termin",
+    objektId: objekt.honorarnoteId ?? objekt.terminId ?? null,
     details,
   });
 }
 
+/** Bezahlte Kartenzahlungen einzelner Sitzungen, je Termin mit Betrag und Wiener Datum. */
+export async function bezahlteSitzungen(
+  db: Datenbank,
+  praxisId: string,
+  terminIds: string[],
+): Promise<Map<string, { betragCent: number; am: string }>> {
+  if (terminIds.length === 0) return new Map();
+  const zeilen = await db
+    .select({
+      terminId: schema.zahlungen.terminId,
+      betragCent: schema.zahlungen.betragCent,
+      am: schema.zahlungen.abgeschlossenAm,
+    })
+    .from(schema.zahlungen)
+    .where(
+      and(
+        eq(schema.zahlungen.praxisId, praxisId),
+        inArray(schema.zahlungen.terminId, terminIds),
+        eq(schema.zahlungen.status, "bezahlt"),
+      ),
+    );
+  return new Map(
+    zeilen.map((z) => [
+      z.terminId ?? "",
+      { betragCent: z.betragCent, am: wienDatum(z.am ?? new Date()) },
+    ]),
+  );
+}
+
+/** Termine, die auf einer gültigen (nicht stornierten) Honorarnote stehen. */
+export async function termineAufNote(
+  db: Datenbank,
+  praxisId: string,
+  terminIds: string[],
+): Promise<Set<string>> {
+  if (terminIds.length === 0) return new Set();
+  const zeilen = await db
+    .select({ terminId: schema.honorarnotePositionen.terminId })
+    .from(schema.honorarnotePositionen)
+    .innerJoin(
+      schema.honorarnoten,
+      eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId),
+    )
+    .where(
+      and(
+        eq(schema.honorarnotePositionen.praxisId, praxisId),
+        inArray(schema.honorarnotePositionen.terminId, terminIds),
+        isNull(schema.honorarnoten.storniertAm),
+      ),
+    );
+  return new Set(zeilen.map((z) => z.terminId));
+}
+
+export type Teilzahlung = { am: string; betragCent: number };
+
+/**
+ * Was auf eine Honorarnote schon mit Karte bezahlt ist: die einzelnen Sitzungen gleich nach
+ * der Sitzung und Zahlungen der Note selbst. Für den Zahlungsvermerk, den die ÖGK für den
+ * Kostenzuschuss verlangt (https://oegk.at/psyche: „die bezahlte Honorarnote“).
+ */
+export async function notenZahlungen(
+  db: Datenbank,
+  praxisId: string,
+  honorarnoteId: string,
+): Promise<Teilzahlung[]> {
+  const [sitzungen, fuerNote] = await Promise.all([
+    db
+      .select({ terminId: schema.honorarnotePositionen.terminId })
+      .from(schema.honorarnotePositionen)
+      .where(
+        and(
+          eq(schema.honorarnotePositionen.praxisId, praxisId),
+          eq(schema.honorarnotePositionen.honorarnoteId, honorarnoteId),
+        ),
+      )
+      .then((p) =>
+        bezahlteSitzungen(
+          db,
+          praxisId,
+          p.map((x) => x.terminId),
+        ),
+      ),
+    db
+      .select({ betragCent: schema.zahlungen.betragCent, am: schema.zahlungen.abgeschlossenAm })
+      .from(schema.zahlungen)
+      .where(
+        and(
+          eq(schema.zahlungen.praxisId, praxisId),
+          eq(schema.zahlungen.honorarnoteId, honorarnoteId),
+          eq(schema.zahlungen.status, "bezahlt"),
+        ),
+      ),
+  ]);
+  return [
+    ...sitzungen.values(),
+    ...fuerNote.map((z) => ({ betragCent: z.betragCent, am: wienDatum(z.am ?? new Date()) })),
+  ].sort((a, b) => a.am.localeCompare(b.am));
+}
+
+export function summe(zahlungen: Teilzahlung[]): number {
+  return zahlungen.reduce((s, z) => s + z.betragCent, 0);
+}
+
+type NotenBetrag = { id: string; summeCent: number };
+
+/**
+ * Was auf Honorarnoten nach den Kartenzahlungen (Sitzungen und Note selbst) noch offen ist,
+ * in Cent, für mehrere Noten mit drei Abfragen.
+ */
+export async function offenJeNote(
+  db: Datenbank,
+  praxisId: string,
+  noten: NotenBetrag[],
+): Promise<Map<string, number>> {
+  if (noten.length === 0) return new Map();
+  const ids = noten.map((n) => n.id);
+  const [positionen, fuerNoten] = await Promise.all([
+    db
+      .select({
+        noteId: schema.honorarnotePositionen.honorarnoteId,
+        terminId: schema.honorarnotePositionen.terminId,
+      })
+      .from(schema.honorarnotePositionen)
+      .where(
+        and(
+          eq(schema.honorarnotePositionen.praxisId, praxisId),
+          inArray(schema.honorarnotePositionen.honorarnoteId, ids),
+        ),
+      ),
+    db
+      .select({ noteId: schema.zahlungen.honorarnoteId, betragCent: schema.zahlungen.betragCent })
+      .from(schema.zahlungen)
+      .where(
+        and(
+          eq(schema.zahlungen.praxisId, praxisId),
+          inArray(schema.zahlungen.honorarnoteId, ids),
+          eq(schema.zahlungen.status, "bezahlt"),
+        ),
+      ),
+  ]);
+  const sitzungen = await bezahlteSitzungen(
+    db,
+    praxisId,
+    positionen.map((p) => p.terminId),
+  );
+  const bezahlt = new Map<string, number>();
+  const dazu = (id: string | null, cent: number) =>
+    id && bezahlt.set(id, (bezahlt.get(id) ?? 0) + cent);
+  for (const p of positionen) dazu(p.noteId, sitzungen.get(p.terminId)?.betragCent ?? 0);
+  for (const z of fuerNoten) dazu(z.noteId, z.betragCent);
+  return new Map(noten.map((n) => [n.id, Math.max(0, n.summeCent - (bezahlt.get(n.id) ?? 0))]));
+}
+
+/** Was auf einer Honorarnote nach den Kartenzahlungen noch offen ist, in Cent. */
+export async function offenCent(
+  db: Datenbank,
+  note: NotenBetrag & { praxisId: string },
+): Promise<number> {
+  return (await offenJeNote(db, note.praxisId, [note])).get(note.id) ?? note.summeCent;
+}
+
+/**
+ * Vermerkt eine Honorarnote als bezahlt, sobald ihre Kartenzahlungen die Summe decken.
+ * Datum ist die letzte Zahlung. Liefert, ob die Note dadurch bezahlt wurde.
+ */
+export async function noteAusgleichen(
+  db: Datenbank,
+  praxisId: string,
+  honorarnoteId: string,
+): Promise<boolean> {
+  const [note] = await db
+    .select()
+    .from(schema.honorarnoten)
+    .where(
+      and(eq(schema.honorarnoten.praxisId, praxisId), eq(schema.honorarnoten.id, honorarnoteId)),
+    );
+  if (!note || note.bezahltAm || note.storniertAm) return false;
+  const zahlungen = await notenZahlungen(db, praxisId, honorarnoteId);
+  if (zahlungen.length === 0 || summe(zahlungen) < note.summeCent) return false;
+  await db
+    .update(schema.honorarnoten)
+    .set({ bezahltAm: zahlungen.at(-1)?.am ?? wienDatum(new Date()) })
+    .where(
+      and(
+        eq(schema.honorarnoten.praxisId, praxisId),
+        eq(schema.honorarnoten.id, note.id),
+        isNull(schema.honorarnoten.bezahltAm),
+      ),
+    );
+  return true;
+}
+
+/** Gültige (nicht stornierte) Honorarnote, auf der ein Termin steht. */
+async function noteMitTermin(db: Datenbank, praxisId: string, terminId: string) {
+  const [zeile] = await db
+    .select({ note: schema.honorarnoten })
+    .from(schema.honorarnotePositionen)
+    .innerJoin(
+      schema.honorarnoten,
+      eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId),
+    )
+    .where(
+      and(
+        eq(schema.honorarnotePositionen.praxisId, praxisId),
+        eq(schema.honorarnotePositionen.terminId, terminId),
+        isNull(schema.honorarnoten.storniertAm),
+      ),
+    );
+  return zeile?.note ?? null;
+}
+
 /**
  * Fragt bei SumUp nach, wie es um eine offene Zahlung steht, und übernimmt das Ergebnis.
- * Bezahlt: Die Honorarnote bekommt bezahltAm (Wiener Datum), falls sie noch offen ist.
+ * Bezahlt: Die Honorarnote bekommt bezahltAm, sobald ihre Zahlungen die Summe decken.
  */
 export async function zahlungAbgleichen(
   db: Datenbank,
@@ -171,7 +382,7 @@ export async function zahlungAbgleichen(
   }
   if (neu === "offen") return "offen";
   if (neu === "bezahlt" && betragCent !== zahlung.betragCent) {
-    await protokoll(db, zahlung.praxisId, "zahlung_betrag_abweichend", zahlung.honorarnoteId, {
+    await protokoll(db, zahlung.praxisId, "zahlung_betrag_abweichend", zahlung, {
       zahlung: zahlung.id,
       erwartetCent: zahlung.betragCent,
       erhaltenCent: betragCent ?? -1,
@@ -195,31 +406,52 @@ export async function zahlungAbgleichen(
     }
     const txDb = tx as unknown as Datenbank;
     if (neu !== "bezahlt") {
-      await protokoll(txDb, zahlung.praxisId, `zahlung_${neu}`, zahlung.honorarnoteId, {
+      await protokoll(txDb, zahlung.praxisId, `zahlung_${neu}`, zahlung, {
         zahlung: zahlung.id,
         art: zahlung.art,
       });
       return neu;
     }
-    const [note] = await tx
-      .update(schema.honorarnoten)
-      .set({ bezahltAm: wienDatum(new Date()) })
-      .where(
-        and(
-          eq(schema.honorarnoten.id, zahlung.honorarnoteId),
-          eq(schema.honorarnoten.praxisId, zahlung.praxisId),
-          isNull(schema.honorarnoten.bezahltAm),
-          isNull(schema.honorarnoten.storniertAm),
-        ),
-      )
-      .returning({ id: schema.honorarnoten.id });
+    const details = {
+      bezahlt: true,
+      zahlung: zahlung.id,
+      art: zahlung.art,
+      betragCent: zahlung.betragCent,
+    };
+    if (zahlung.terminId) {
+      // Gleich nach der Sitzung bezahlt. Steht sie schon auf einer Honorarnote, wird diese
+      // bezahlt, sobald alle ihre Sitzungen beglichen sind.
+      const andere = await txDb
+        .select({ id: schema.zahlungen.id })
+        .from(schema.zahlungen)
+        .where(
+          and(
+            eq(schema.zahlungen.praxisId, zahlung.praxisId),
+            eq(schema.zahlungen.terminId, zahlung.terminId),
+            eq(schema.zahlungen.status, "bezahlt"),
+            ne(schema.zahlungen.id, zahlung.id),
+          ),
+        );
+      const note = await noteMitTermin(txDb, zahlung.praxisId, zahlung.terminId);
+      const doppelt = andere.length > 0 || Boolean(note?.bezahltAm);
+      await protokoll(
+        txDb,
+        zahlung.praxisId,
+        doppelt ? "zahlung_doppelt" : "bezahlt",
+        zahlung,
+        details,
+      );
+      if (note && !doppelt) await noteAusgleichen(txDb, zahlung.praxisId, note.id);
+      return neu;
+    }
+    const ausgeglichen = await noteAusgleichen(txDb, zahlung.praxisId, zahlung.honorarnoteId ?? "");
+    // Bereits bezahlt oder storniert: Geld kam trotzdem an, die Praxis muss es zurückzahlen.
     await protokoll(
       txDb,
       zahlung.praxisId,
-      // Bereits bezahlt oder storniert: Geld kam trotzdem an, die Praxis muss es zurückzahlen.
-      note ? "bezahlt" : "zahlung_doppelt",
-      zahlung.honorarnoteId,
-      { bezahlt: true, zahlung: zahlung.id, art: zahlung.art, betragCent: zahlung.betragCent },
+      ausgeglichen ? "bezahlt" : "zahlung_doppelt",
+      zahlung,
+      details,
     );
     return neu;
   });
@@ -257,6 +489,7 @@ export async function sumupWebhook(opts: {
 export type Zahlseite = {
   praxisName: string;
   nummer: string;
+  /** Noch zu zahlen: Summe der Note abzüglich der Sitzungen, die schon bezahlt sind. */
   summeCent: number;
   status: "offen" | "bezahlt" | "storniert";
   online: boolean;
@@ -274,6 +507,7 @@ export async function zahlseiteLaden(opts: {
   if (!z) return null;
   const konto = await sumupKontoLaden(db, z.praxis);
   let bezahlt = z.note.bezahltAm !== null;
+  const offen = await offenCent(db, z.note);
   if (konto && !bezahlt && !z.note.storniertAm) {
     const [letzte] = await db
       .select()
@@ -293,7 +527,7 @@ export async function zahlseiteLaden(opts: {
   return {
     praxisName: z.praxisName,
     nummer: formatHonorarnoteNummer(z.note.jahr, z.note.laufendeNummer),
-    summeCent: z.note.summeCent,
+    summeCent: offen,
     status: z.note.storniertAm ? "storniert" : bezahlt ? "bezahlt" : "offen",
     online: konto !== null,
   };
@@ -316,6 +550,8 @@ export async function onlineZahlungStarten(opts: {
   if (z.note.bezahltAm) return { fehler: "Diese Honorarnote ist bereits bezahlt." };
   const konto = await sumupKontoLaden(db, z.praxis);
   if (!konto) return { fehler: "Die Praxis nimmt derzeit keine Online-Zahlungen an." };
+  const offen = await offenCent(db, z.note);
+  if (offen === 0) return { fehler: "Diese Honorarnote ist bereits bezahlt." };
 
   const [gueltig] = await db
     .select()
@@ -326,7 +562,7 @@ export async function onlineZahlungStarten(opts: {
         eq(schema.zahlungen.praxisId, z.praxis.id),
         eq(schema.zahlungen.art, "online"),
         eq(schema.zahlungen.status, "offen"),
-        eq(schema.zahlungen.betragCent, z.note.summeCent),
+        eq(schema.zahlungen.betragCent, offen),
         gt(schema.zahlungen.erstelltAm, new Date(Date.now() - ZAHLSEITE_GUELTIG_MS)),
       ),
     )
@@ -340,7 +576,7 @@ export async function onlineZahlungStarten(opts: {
       praxisId: z.praxis.id,
       honorarnoteId: z.note.id,
       art: "online",
-      betragCent: z.note.summeCent,
+      betragCent: offen,
     })
     .returning();
   if (!zahlung) throw new Error("Zahlung nicht angelegt");
@@ -357,10 +593,16 @@ export async function onlineZahlungStarten(opts: {
       .update(schema.zahlungen)
       .set({ anbieterId: checkout.id, zahlseiteUrl: checkout.hosted_checkout_url })
       .where(eq(schema.zahlungen.id, zahlung.id));
-    await protokoll(db, z.praxis.id, "zahlung_gestartet", z.note.id, {
-      zahlung: zahlung.id,
-      art: "online",
-    });
+    await protokoll(
+      db,
+      z.praxis.id,
+      "zahlung_gestartet",
+      { honorarnoteId: z.note.id },
+      {
+        zahlung: zahlung.id,
+        art: "online",
+      },
+    );
     return { url: checkout.hosted_checkout_url };
   } catch (e) {
     await db

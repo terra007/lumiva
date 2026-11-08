@@ -29,6 +29,13 @@
       "when": 1794084205098,
       "tag": "0003_sumup_zahlungen",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794124534627,
+      "tag": "0004_zahlung_je_sitzung",
+      "breakpoints": true
     }
   ]
 }

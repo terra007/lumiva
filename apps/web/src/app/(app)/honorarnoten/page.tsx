@@ -71,6 +71,11 @@ export default async function Honorarnoten() {
                     {n.bezahltAm && (
                       <span className="ml-2 text-muted text-xs">{formatDatum(n.bezahltAm)}</span>
                     )}
+                    {n.offenCent > 0 && n.offenCent < n.summeCent && (
+                      <span className="ml-2 text-muted text-xs">
+                        teilweise mit Karte, offen {euro(n.offenCent)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex justify-end gap-2">
@@ -85,7 +90,7 @@ export default async function Honorarnoten() {
                         </a>
                       )}
                       {!n.storniertAm && !n.bezahltAm && sumup.terminal && (
-                        <TerminalZahlung honorarnoteId={n.id} />
+                        <TerminalZahlung ziel={{ honorarnoteId: n.id }} />
                       )}
                       {!n.storniertAm && !n.bezahltAm && sumup.online && (
                         <ZahllinkKopieren honorarnoteId={n.id} />

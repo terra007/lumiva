@@ -23,3 +23,15 @@ export function NotenStatus({
     </span>
   );
 }
+
+/** Abzeichen für eine mit Karte bezahlte Sitzung, optional mit Datum. */
+export function BezahltAbzeichen({ am }: { am?: string }) {
+  return (
+    <span
+      className="abzeichen bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+      title="Mit Karte bezahlt"
+    >
+      Bezahlt{am ? ` ${am}` : ""}
+    </span>
+  );
+}

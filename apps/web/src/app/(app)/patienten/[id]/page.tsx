@@ -3,7 +3,8 @@ import { DokuText } from "@/components/doku-text";
 import { AktionsKnopf, Feld, Formular } from "@/components/formular";
 import { Icd10Auswahl } from "@/components/icd10-auswahl";
 import { KiAufnahme } from "@/components/ki-aufnahme";
-import { NotenStatus } from "@/components/noten-status";
+import { BezahltAbzeichen, NotenStatus } from "@/components/noten-status";
+import { KassierenKnopf } from "@/components/sumup-zahlung";
 import {
   DOKU_ART,
   datumIso,
@@ -45,7 +46,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
   const darfAkte = ich.praxis?.rolle !== "assistenz";
   const jetzt = new Date();
   const p = await lumiva.patienten.details({ id });
-  const [termine, doku, offen, noten, aufgaben, kiVerfuegbar] = await Promise.all([
+  const [termine, doku, offen, noten, aufgaben, kiVerfuegbar, sumup] = await Promise.all([
     lumiva.termine.zeitraum({
       von: new Date(jetzt.getTime() - 300 * 24 * 60 * 60_000),
       bis: new Date(jetzt.getTime() + 90 * 24 * 60 * 60_000),
@@ -56,6 +57,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
     lumiva.honorarnoten.liste({ patientId: id }),
     lumiva.aufgaben.liste({ patientId: id }),
     darfAkte ? lumiva.ki.verfuegbar() : Promise.resolve(false),
+    lumiva.zahlungen.verfuegbar(),
   ]);
   const vergangen = termine.filter((t) => t.beginn < jetzt).reverse();
   const aktiv = doku.filter((e) => !e.geloeschtAm);
@@ -267,8 +269,8 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                 Termin vereinbaren
               </Link>
             </div>
-            <TerminListe titel="Kommend" termine={kommend} />
-            <TerminListe titel="Vergangen" termine={vergangen} />
+            <TerminListe titel="Kommend" termine={kommend} terminal={sumup.terminal} />
+            <TerminListe titel="Vergangen" termine={vergangen} terminal={sumup.terminal} />
           </section>
         </div>
 
@@ -293,6 +295,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                         />
                         <span className="tabular-nums">{formatDatum(datumIso(t.beginn))}</span>
                         <span className="flex-1 text-muted">{t.bezeichnung}</span>
+                        {t.bezahltAm && <BezahltAbzeichen />}
                         <span className="tabular-nums">{euro(t.honorarCent)}</span>
                       </label>
                     </li>
@@ -300,6 +303,15 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                 </ul>
               </Formular>
             )}
+            {/* Die ÖGK erstattet gegen die bezahlte Honorarnote, eine Note darf mehrere
+                Sitzungen enthalten; ab der 11. Sitzung braucht es eine Bewilligung
+                (https://oegk.at/psyche). */}
+            <p className="text-muted text-xs">
+              Am besten nach jeder Sitzung am Terminal kassieren und die Honorarnote gesammelt
+              ausstellen, etwa einmal im Monat. Spätestens nach der 10. Sitzung, weil die Kasse ab
+              der 11. eine Bewilligung verlangt. Mit Karte bezahlte Sitzungen stehen als bezahlt auf
+              der Note, damit kann sie gleich zur Kasse.
+            </p>
             {noten.length > 0 && (
               <ul className="flex flex-col divide-y divide-line border-line border-t pt-2 text-sm">
                 {noten.map((n) => (
@@ -314,6 +326,9 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                     </a>
                     <span className="flex-1 text-muted">{formatDatum(n.ausgestelltAm)}</span>
                     <span className="tabular-nums">{euro(n.summeCent)}</span>
+                    {n.offenCent > 0 && n.offenCent < n.summeCent && (
+                      <span className="text-muted text-xs">offen {euro(n.offenCent)}</span>
+                    )}
                     <NotenStatus bezahlt={n.bezahltAm} storniert={n.storniertAm} />
                   </li>
                 ))}
@@ -402,9 +417,19 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
 function TerminListe({
   titel,
   termine,
+  terminal,
 }: {
   titel: string;
-  termine: { id: string; beginn: Date; status: string; sitzungsart: string }[];
+  termine: {
+    id: string;
+    beginn: Date;
+    status: string;
+    sitzungsart: string;
+    bezahltAm: string | null;
+    kassieren: { betragCent: number; abschliessen: boolean } | null;
+  }[];
+  /** Ein SumUp-Terminal ist gekoppelt: Sitzungen gleich danach kassieren. */
+  terminal: boolean;
 }) {
   if (termine.length === 0) return null;
   return (
@@ -412,7 +437,7 @@ function TerminListe({
       <h3 className="font-medium text-muted text-xs uppercase tracking-wide">{titel}</h3>
       <ul className="flex flex-col gap-1 text-sm">
         {termine.slice(0, 8).map((t) => (
-          <li key={t.id} className="flex items-center gap-3">
+          <li key={t.id} className="flex flex-wrap items-center gap-3">
             <Link
               href={`/kalender?woche=${datumIso(t.beginn)}&termin=${t.id}`}
               className="verweis w-32 tabular-nums"
@@ -420,6 +445,8 @@ function TerminListe({
               {formatDatum(datumIso(t.beginn))} {uhrzeit(t.beginn)}
             </Link>
             <span className="flex-1 text-muted">{t.sitzungsart}</span>
+            {t.bezahltAm && <BezahltAbzeichen />}
+            {terminal && t.kassieren && <KassierenKnopf terminId={t.id} {...t.kassieren} />}
             <span className={`abzeichen ${TERMIN_STATUS[t.status]?.klasse}`}>
               {TERMIN_STATUS[t.status]?.text}
             </span>

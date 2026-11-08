@@ -1,4 +1,5 @@
 import { schema } from "@lumiva/db";
+import { formatDatum, kassierbar, wienDatum } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
 import { and, eq, gt } from "drizzle-orm";
 import { z } from "zod";
@@ -8,8 +9,11 @@ import { DEMO_HAENDLERCODE, DEMO_TERMINAL, demoErlaubt } from "../sumup-demo";
 import { inhaberIn, inPraxis, router } from "../trpc";
 import { enc, protokollieren } from "../werkzeuge";
 import {
+  bezahlteSitzungen,
+  offenCent,
   type SumupKonto,
   sumupKontoLaden,
+  termineAufNote,
   webhookUrl,
   zahllinkUrl,
   zahlungAbgleichen,
@@ -17,6 +21,7 @@ import {
 } from "../zahlungen";
 
 type Ctx = Parameters<typeof patientenFilter>[0];
+type PraxisCtx = Parameters<typeof protokollieren>[0];
 
 /** Fehler von SumUp als Meldung für die Oberfläche, ohne Antwortinhalt. */
 function alsTrpcFehler(e: unknown): never {
@@ -50,15 +55,77 @@ async function offeneNote(ctx: Ctx, id: string) {
   return zeile.note;
 }
 
-async function zahlungLaden(ctx: Ctx, id: string) {
+/**
+ * Erledigte oder ausgefallene Sitzung mit Honorar, die noch niemand bezahlt hat.
+ * Mit `abschliessen` wird eine begonnene, noch geplante Sitzung zuerst als erledigt vermerkt,
+ * damit am Ende der Sitzung ein Klick reicht.
+ */
+async function offeneSitzung(ctx: Ctx & PraxisCtx, id: string, abschliessen: boolean) {
   const [zeile] = await ctx.db
-    .select({ zahlung: schema.zahlungen })
+    .select({ termin: schema.termine })
+    .from(schema.termine)
+    .innerJoin(schema.patienten, eq(schema.patienten.id, schema.termine.patientId))
+    .where(and(patientenFilter(ctx), eq(schema.termine.id, id)));
+  if (!zeile) throw new TRPCError({ code: "NOT_FOUND", message: "Termin nicht gefunden." });
+  const [bezahlt, aufNote] = await Promise.all([
+    bezahlteSitzungen(ctx.db, ctx.praxis.id, [id]),
+    termineAufNote(ctx.db, ctx.praxis.id, [id]),
+  ]);
+  let t = zeile.termin;
+  if (bezahlt.size > 0)
+    throw new TRPCError({ code: "CONFLICT", message: "Die Sitzung ist bereits bezahlt." });
+  // Steht sie schon auf einer Honorarnote, wird über die Note bezahlt (Rest oder Zahllink).
+  // So können Sitzung und Note nicht gleichzeitig kassiert werden.
+  if (aufNote.size > 0)
+    throw new TRPCError({
+      code: "CONFLICT",
+      message: "Die Sitzung steht schon auf einer Honorarnote; bitte dort kassieren.",
+    });
+  const k = kassierbar({ ...t, bezahlt: false, abgerechnet: false }, new Date());
+  if (!k || (k.abschliessen && !abschliessen))
+    throw new TRPCError({
+      code: "CONFLICT",
+      message: "Erst die Sitzung als erledigt markieren, dann kassieren.",
+    });
+  if (k.abschliessen) {
+    const [neu] = await ctx.db
+      .update(schema.termine)
+      .set({ status: "erledigt", ausfallhonorarCent: null })
+      .where(and(eq(schema.termine.id, t.id), eq(schema.termine.status, "geplant")))
+      .returning();
+    if (!neu) throw new TRPCError({ code: "CONFLICT", message: "Der Termin wurde eben geändert." });
+    t = neu;
+    await protokollieren(ctx, "status", "termin", t.id, { status: "erledigt" });
+  }
+  const betragCent = k.betragCent;
+  return { termin: t, betragCent };
+}
+
+/** Zahlung, deren Note oder Sitzung die Person sehen darf. */
+async function zahlungLaden(ctx: Ctx, id: string) {
+  const [zahlung] = await ctx.db
+    .select()
     .from(schema.zahlungen)
-    .innerJoin(schema.honorarnoten, eq(schema.honorarnoten.id, schema.zahlungen.honorarnoteId))
-    .innerJoin(schema.patienten, eq(schema.patienten.id, schema.honorarnoten.patientId))
-    .where(and(patientenFilter(ctx), eq(schema.zahlungen.id, id)));
-  if (!zeile) throw new TRPCError({ code: "NOT_FOUND", message: "Zahlung nicht gefunden." });
-  return zeile.zahlung;
+    .where(and(eq(schema.zahlungen.praxisId, ctx.praxis.id), eq(schema.zahlungen.id, id)));
+  let sichtbar = false;
+  if (zahlung?.terminId) {
+    const [t] = await ctx.db
+      .select({ id: schema.termine.id })
+      .from(schema.termine)
+      .innerJoin(schema.patienten, eq(schema.patienten.id, schema.termine.patientId))
+      .where(and(patientenFilter(ctx), eq(schema.termine.id, zahlung.terminId)));
+    sichtbar = Boolean(t);
+  } else if (zahlung?.honorarnoteId) {
+    const [n] = await ctx.db
+      .select({ id: schema.honorarnoten.id })
+      .from(schema.honorarnoten)
+      .innerJoin(schema.patienten, eq(schema.patienten.id, schema.honorarnoten.patientId))
+      .where(and(patientenFilter(ctx), eq(schema.honorarnoten.id, zahlung.honorarnoteId)));
+    sichtbar = Boolean(n);
+  }
+  if (!zahlung || !sichtbar)
+    throw new TRPCError({ code: "NOT_FOUND", message: "Zahlung nicht gefunden." });
+  return zahlung;
 }
 
 const geheim = z.string().trim().max(500);
@@ -203,11 +270,19 @@ export const zahlungenRouter = router({
     return { url: zahllinkUrl(ctx.praxis.schluessel, note.id) };
   }),
 
-  /** Schickt den Betrag an den Solo. Ob bezahlt wurde, meldet danach `status`. */
+  /**
+   * Schickt den Betrag an den Solo, entweder für eine Sitzung gleich danach oder für den offenen
+   * Rest einer Honorarnote. Ob bezahlt wurde, meldet danach `status`.
+   */
   terminalStarten: inPraxis
-    .input(z.object({ honorarnoteId: z.uuid() }))
+    .input(
+      z.union([
+        z.object({ terminId: z.uuid(), abschliessen: z.boolean().default(false) }),
+        z.object({ honorarnoteId: z.uuid() }),
+      ]),
+    )
     .mutation(async ({ ctx, input }) => {
-      const note = await offeneNote(ctx, input.honorarnoteId);
+      // Zuerst prüfen, damit „Erledigt · kassieren“ ohne Terminal nichts am Termin ändert.
       const konto = await kontoPflicht(ctx);
       if (!konto.terminalId || !konto.affiliate) {
         throw new TRPCError({
@@ -215,14 +290,37 @@ export const zahlungenRouter = router({
           message: "Kein Terminal gekoppelt oder Affiliate-Key fehlt (Einstellungen).",
         });
       }
-      // Doppelklick: Läuft schon eine Terminal-Zahlung für diese Note, diese zurückgeben.
+      const terminalId = konto.terminalId;
+      let ziel: { honorarnoteId: string | null; terminId: string | null };
+      let betragCent: number;
+      let beschreibung: string;
+      if ("terminId" in input) {
+        const s = await offeneSitzung(ctx, input.terminId, input.abschliessen);
+        ziel = { honorarnoteId: null, terminId: s.termin.id };
+        betragCent = s.betragCent;
+        // Für SumUp nur das Datum, nichts über die Behandlung.
+        beschreibung = `Honorar ${formatDatum(wienDatum(s.termin.beginn))}`;
+      } else {
+        const note = await offeneNote(ctx, input.honorarnoteId);
+        ziel = { honorarnoteId: note.id, terminId: null };
+        betragCent = await offenCent(ctx.db, note);
+        beschreibung = zahlungsBeschreibung(note.jahr, note.laufendeNummer);
+        if (betragCent === 0)
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Die Honorarnote ist bereits bezahlt.",
+          });
+      }
+      // Doppelklick: Läuft schon eine Terminal-Zahlung dafür, diese zurückgeben.
       const [laeuft] = await ctx.db
         .select({ id: schema.zahlungen.id })
         .from(schema.zahlungen)
         .where(
           and(
             eq(schema.zahlungen.praxisId, ctx.praxis.id),
-            eq(schema.zahlungen.honorarnoteId, note.id),
+            ziel.terminId
+              ? eq(schema.zahlungen.terminId, ziel.terminId)
+              : eq(schema.zahlungen.honorarnoteId, ziel.honorarnoteId ?? ""),
             eq(schema.zahlungen.art, "terminal"),
             eq(schema.zahlungen.status, "offen"),
             gt(schema.zahlungen.erstelltAm, new Date(Date.now() - 2 * 60_000)),
@@ -232,19 +330,14 @@ export const zahlungenRouter = router({
 
       const [zahlung] = await ctx.db
         .insert(schema.zahlungen)
-        .values({
-          praxisId: ctx.praxis.id,
-          honorarnoteId: note.id,
-          art: "terminal",
-          betragCent: note.summeCent,
-        })
+        .values({ praxisId: ctx.praxis.id, ...ziel, art: "terminal", betragCent })
         .returning({ id: schema.zahlungen.id });
       if (!zahlung) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       try {
         const antwort = await sumupClient(konto).terminalZahlung({
-          terminalId: konto.terminalId,
-          betragCent: note.summeCent,
-          beschreibung: zahlungsBeschreibung(note.jahr, note.laufendeNummer),
+          terminalId,
+          betragCent,
+          beschreibung,
           webhookUrl: webhookUrl(zahlung.id),
         });
         await ctx.db
@@ -258,10 +351,13 @@ export const zahlungenRouter = router({
           .where(eq(schema.zahlungen.id, zahlung.id));
         alsTrpcFehler(e);
       }
-      await protokollieren(ctx, "zahlung_gestartet", "honorarnote", note.id, {
-        zahlung: zahlung.id,
-        art: "terminal",
-      });
+      await protokollieren(
+        ctx,
+        "zahlung_gestartet",
+        ziel.terminId ? "termin" : "honorarnote",
+        ziel.terminId ?? ziel.honorarnoteId,
+        { zahlung: zahlung.id, art: "terminal", betragCent },
+      );
       return { zahlungId: zahlung.id };
     }),
 
@@ -286,11 +382,9 @@ export const zahlungenRouter = router({
       await protokollieren(
         ctx,
         "zahlung_abbruch_angefordert",
-        "honorarnote",
-        zahlung.honorarnoteId,
-        {
-          zahlung: zahlung.id,
-        },
+        zahlung.terminId ? "termin" : "honorarnote",
+        zahlung.terminId ?? zahlung.honorarnoteId,
+        { zahlung: zahlung.id },
       );
     }),
 });

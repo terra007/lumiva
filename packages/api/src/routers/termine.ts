@@ -1,11 +1,12 @@
 import { schema } from "@lumiva/db";
-import { tageAddieren, wienDatum, wienZeit, wienZuDate } from "@lumiva/domain";
+import { kassierbar, tageAddieren, wienDatum, wienZeit, wienZuDate } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, eq, gte, lt, notExists } from "drizzle-orm";
 import { z } from "zod";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router } from "../trpc";
 import { patientName, protokollieren } from "../werkzeuge";
+import { bezahlteSitzungen, termineAufNote } from "../zahlungen";
 
 const MINUTE = 60_000;
 
@@ -35,11 +36,27 @@ export async function termineImZeitraum(
       ),
     )
     .orderBy(asc(schema.termine.beginn));
-  return zeilen.map(({ termin, vornameEnc, nachnameEnc, sitzungsart }) => ({
-    ...termin,
-    sitzungsart: sitzungsart ?? "Sitzung",
-    patientName: patientName(ctx.praxis, termin.patientId, vornameEnc, nachnameEnc),
-  }));
+  const ids = zeilen.map((z) => z.termin.id);
+  const [bezahlt, aufNote] = await Promise.all([
+    bezahlteSitzungen(ctx.db, ctx.praxis.id, ids),
+    termineAufNote(ctx.db, ctx.praxis.id, ids),
+  ]);
+  const jetzt = new Date();
+  return zeilen.map(({ termin, vornameEnc, nachnameEnc, sitzungsart }) => {
+    const bezahltAm = bezahlt.get(termin.id)?.am ?? null;
+    return {
+      ...termin,
+      /** Mit Karte bezahlt (Wiener Datum), etwa gleich nach der Sitzung am Terminal. */
+      bezahltAm,
+      /** Was sich jetzt am Terminal kassieren lässt (Betrag, vorher erledigt vermerken). */
+      kassieren: kassierbar(
+        { ...termin, bezahlt: bezahltAm !== null, abgerechnet: aufNote.has(termin.id) },
+        jetzt,
+      ),
+      sitzungsart: sitzungsart ?? "Sitzung",
+      patientName: patientName(ctx.praxis, termin.patientId, vornameEnc, nachnameEnc),
+    };
+  });
 }
 
 async function terminLaden(ctx: Parameters<typeof patientLaden>[0], id: string) {
@@ -53,20 +70,7 @@ async function terminLaden(ctx: Parameters<typeof patientLaden>[0], id: string) 
 }
 
 async function istAbgerechnet(ctx: Parameters<typeof patientLaden>[0], terminId: string) {
-  const zeilen = await ctx.db
-    .select({ storniert: schema.honorarnoten.storniertAm })
-    .from(schema.honorarnotePositionen)
-    .innerJoin(
-      schema.honorarnoten,
-      eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId),
-    )
-    .where(
-      and(
-        eq(schema.honorarnotePositionen.praxisId, ctx.praxis.id),
-        eq(schema.honorarnotePositionen.terminId, terminId),
-      ),
-    );
-  return zeilen.some((z) => z.storniert === null);
+  return (await termineAufNote(ctx.db, ctx.praxis.id, [terminId])).size > 0;
 }
 
 export const termineRouter = router({
@@ -140,10 +144,20 @@ export const termineRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const termin = await terminLaden(ctx, input.id);
-      if (await istAbgerechnet(ctx, termin.id)) {
+      const [aufNote, bezahlt] = await Promise.all([
+        istAbgerechnet(ctx, termin.id),
+        bezahlteSitzungen(ctx.db, ctx.praxis.id, [termin.id]),
+      ]);
+      if (aufNote) {
         throw new TRPCError({
           code: "CONFLICT",
           message: "Der Termin steht schon auf einer Honorarnote.",
+        });
+      }
+      if (bezahlt.size > 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Die Sitzung ist schon bezahlt.",
         });
       }
       await ctx.db
@@ -187,17 +201,44 @@ export const termineRouter = router({
       }
       if (input.ganzeSerie && termin.serieId) {
         // Nur künftige, noch geplante Termine der Serie.
-        await ctx.db
-          .delete(schema.termine)
+        await ctx.db.delete(schema.termine).where(
+          and(
+            eq(schema.termine.praxisId, ctx.praxis.id),
+            eq(schema.termine.serieId, termin.serieId),
+            eq(schema.termine.status, "geplant"),
+            gte(schema.termine.beginn, termin.beginn),
+            // Termine mit Zahlungsversuch bleiben, die Zahlung braucht ihren Termin.
+            notExists(
+              ctx.db
+                .select({ id: schema.zahlungen.id })
+                .from(schema.zahlungen)
+                .where(
+                  and(
+                    eq(schema.zahlungen.praxisId, ctx.praxis.id),
+                    eq(schema.zahlungen.terminId, schema.termine.id),
+                  ),
+                ),
+            ),
+          ),
+        );
+      } else {
+        const [zahlung] = await ctx.db
+          .select({ id: schema.zahlungen.id })
+          .from(schema.zahlungen)
           .where(
             and(
-              eq(schema.termine.praxisId, ctx.praxis.id),
-              eq(schema.termine.serieId, termin.serieId),
-              eq(schema.termine.status, "geplant"),
-              gte(schema.termine.beginn, termin.beginn),
+              eq(schema.zahlungen.praxisId, ctx.praxis.id),
+              eq(schema.zahlungen.terminId, termin.id),
             ),
-          );
-      } else {
+          )
+          .limit(1);
+        if (zahlung) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Für den Termin gab es schon eine Kartenzahlung. Bitte als abgesagt markieren.",
+          });
+        }
         await ctx.db.delete(schema.termine).where(eq(schema.termine.id, termin.id));
       }
       await protokollieren(ctx, "geloescht", "termin", termin.id, { serie: input.ganzeSerie });

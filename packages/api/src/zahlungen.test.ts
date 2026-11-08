@@ -1,5 +1,6 @@
 import { type Datenbank, datenbankVerbinden, schema } from "@lumiva/db";
 import { neuerSchluessel } from "@lumiva/db/crypto";
+import { wienDatum } from "@lumiva/domain";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -269,6 +270,98 @@ describe("SumUp", () => {
     expect(await api.zahlungen.status({ zahlungId })).toEqual({ status: "fehlgeschlagen" });
     const noten = await api.honorarnoten.liste();
     expect(noten.find((n) => n.id === note.id)?.bezahltAm).toBeNull();
+  });
+});
+
+describe("Kassieren nach der Sitzung", () => {
+  it("kassiert jede Sitzung gleich danach und rechnet das auf der Honorarnote an", async () => {
+    const api = createCaller(
+      await kontextFuer({ id: "maria", name: "Mag. Maria Muster", email: "maria@test.at" }),
+    );
+    const heute = wienDatum(new Date());
+    const [patient] = await api.patienten.liste();
+    const patientId = patient?.id ?? "";
+    const [einzel] = (await api.praxis.sitzungsarten()).filter((s) => s.name === "Einzelsitzung");
+    const sitzung = async (tag: string) => {
+      await api.termine.anlegen({
+        patientId,
+        sitzungsartId: einzel?.id ?? "",
+        beginn: new Date(`${tag}T08:00:00Z`),
+      });
+      const [t] = await api.termine.zeitraum({
+        von: new Date(`${tag}T00:00:00Z`),
+        bis: new Date(`${tag}T23:00:00Z`),
+      });
+      if (!t) throw new Error("Termin fehlt");
+      return t;
+    };
+    const kassieren = async (terminId: string, abschliessen = false) => {
+      const { zahlungId } = await api.zahlungen.terminalStarten({ terminId, abschliessen });
+      const [z] = await db
+        .select()
+        .from(schema.zahlungen)
+        .where(eq(schema.zahlungen.id, zahlungId));
+      sumup.transaktionen.set(z?.anbieterId ?? "", { status: "SUCCESSFUL", amount: 90 });
+      expect(await api.zahlungen.status({ zahlungId })).toEqual({ status: "bezahlt" });
+    };
+
+    // Noch geplant: erst nach der Sitzung, dann ein Klick für erledigt und kassieren.
+    const a = await sitzung("2026-10-20");
+    await expect(api.zahlungen.terminalStarten({ terminId: a.id })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    const vorher = sumup.anfragen.length;
+    await kassieren(a.id, true);
+    const anSolo = sumup.anfragen.slice(vorher).find((x) => x.pfad.endsWith("/checkout"));
+    expect(anSolo?.body).toMatchObject({
+      total_amount: { value: 9000, currency: "EUR", minor_unit: 2 },
+      description: "Honorar 20.10.2026",
+    });
+    expect(JSON.stringify(sumup.anfragen)).not.toMatch(/Anna|Berger|F32|Einzelsitzung/);
+    const [nachher] = await api.termine.zeitraum({
+      von: new Date("2026-10-20T00:00:00Z"),
+      bis: new Date("2026-10-21T00:00:00Z"),
+    });
+    expect(nachher).toMatchObject({ status: "erledigt", bezahltAm: heute });
+    // Bezahlt: kein zweites Mal, und der Status bleibt.
+    await expect(api.zahlungen.terminalStarten({ terminId: a.id })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    await expect(api.termine.status({ id: a.id, status: "abgesagt" })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+
+    // Zweite Sitzung bleibt offen; die Note über beide verlangt nur noch den Rest.
+    const b = await sitzung("2026-10-27");
+    await api.termine.status({ id: b.id, status: "erledigt" });
+    const offen = await api.honorarnoten.offen({ patientId });
+    expect(offen.find((t) => t.id === a.id)?.bezahltAm).toBe(heute);
+    expect(offen.find((t) => t.id === b.id)?.bezahltAm).toBeNull();
+    const note = await api.honorarnoten.ausstellen({ patientId, terminIds: [a.id, b.id] });
+    let eintrag = (await api.honorarnoten.liste()).find((n) => n.id === note.id);
+    expect(eintrag).toMatchObject({ summeCent: 18000, offenCent: 9000, bezahltAm: null });
+    const { url } = await api.zahlungen.link({ honorarnoteId: note.id });
+    const seite = await zahlseiteLaden({ db, hauptschluessel, token: url.split("/").pop() ?? "" });
+    expect(seite?.summeCent).toBe(9000);
+    expect((await api.honorarnoten.pdf({ id: note.id })).base64.length).toBeGreaterThan(100);
+
+    const { zahlungId } = await api.zahlungen.terminalStarten({ honorarnoteId: note.id });
+    const [rest] = await db
+      .select()
+      .from(schema.zahlungen)
+      .where(eq(schema.zahlungen.id, zahlungId));
+    expect(rest?.betragCent).toBe(9000);
+    sumup.transaktionen.set(rest?.anbieterId ?? "", { status: "SUCCESSFUL", amount: 90 });
+    expect(await api.zahlungen.status({ zahlungId })).toEqual({ status: "bezahlt" });
+    eintrag = (await api.honorarnoten.liste()).find((n) => n.id === note.id);
+    expect(eintrag?.bezahltAm).toBe(heute);
+
+    // Alle Sitzungen schon bezahlt: Die Note ist gleich beim Ausstellen bezahlt.
+    const c = await sitzung("2026-10-13");
+    await api.termine.status({ id: c.id, status: "erledigt" });
+    await kassieren(c.id);
+    const voll = await api.honorarnoten.ausstellen({ patientId, terminIds: [c.id] });
+    expect((await api.honorarnoten.liste()).find((n) => n.id === voll.id)?.bezahltAm).toBe(heute);
   });
 });
 

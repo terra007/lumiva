@@ -1,9 +1,11 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { euro } from "@/lib/format";
 import {
   terminalZahlungAbbrechen,
   terminalZahlungStarten,
+  type ZahlungsZiel,
   zahllinkHolen,
   zahlungStatus,
 } from "@/server/aktionen";
@@ -18,7 +20,14 @@ const MELDUNG: Record<string, string> = {
  * Schickt den Betrag an den SumUp Solo und wartet auf das Ergebnis. Fragt alle zwei Sekunden
  * nach; der Server gleicht dabei mit SumUp ab, auch wenn kein Webhook ankommt.
  */
-export function TerminalZahlung({ honorarnoteId }: { honorarnoteId: string }) {
+export function TerminalZahlung({
+  ziel,
+  text = "Terminal",
+}: {
+  ziel: ZahlungsZiel;
+  /** Beschriftung, z. B. „Kassieren 90,00 €“ gleich nach der Sitzung. */
+  text?: string;
+}) {
   const router = useRouter();
   const [zahlungId, setZahlungId] = useState<string | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
@@ -67,16 +76,34 @@ export function TerminalZahlung({ honorarnoteId }: { honorarnoteId: string }) {
         onClick={async () => {
           setStartet(true);
           setMeldung(null);
-          const stand = await terminalZahlungStarten(honorarnoteId);
+          const stand = await terminalZahlungStarten(ziel);
           setStartet(false);
           if (stand.zahlungId) setZahlungId(stand.zahlungId);
           else setMeldung(stand.fehler ?? "Etwas ist schiefgelaufen.");
         }}
       >
-        {startet ? "…" : "Terminal"}
+        {startet ? "…" : text}
       </button>
       {meldung && <span className="max-w-xs text-muted text-xs">{meldung}</span>}
     </span>
+  );
+}
+
+/** „Kassieren“ gleich nach der Sitzung; bei laufender Sitzung vorher als erledigt vermerken. */
+export function KassierenKnopf({
+  terminId,
+  betragCent,
+  abschliessen,
+}: {
+  terminId: string;
+  betragCent: number;
+  abschliessen: boolean;
+}) {
+  return (
+    <TerminalZahlung
+      ziel={{ terminId, abschliessen }}
+      text={`${abschliessen ? "Erledigt · kassieren" : "Kassieren"} ${euro(betragCent)}`}
+    />
   );
 }
 
