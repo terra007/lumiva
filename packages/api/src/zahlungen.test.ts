@@ -144,7 +144,11 @@ describe("SumUp", () => {
     const note = await neueNote("2026-11-02T08:00:00Z");
     const { zahlungId } = await api.zahlungen.terminalStarten({ honorarnoteId: note.id });
     // Doppelklick startet keine zweite Zahlung.
-    expect(await api.zahlungen.terminalStarten({ honorarnoteId: note.id })).toEqual({ zahlungId });
+    expect(await api.zahlungen.terminalStarten({ honorarnoteId: note.id })).toMatchObject({
+      zahlungId,
+      betragCent: 9000,
+      demo: false,
+    });
 
     const anSolo = sumup.anfragen.find((a) => a.pfad.endsWith("/readers/rdr_TEST/checkout"));
     expect(anSolo?.body).toEqual({
