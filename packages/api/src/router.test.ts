@@ -102,6 +102,13 @@ describe("LUMIVA-API", () => {
     });
     const mitTranskript = (await api.doku.liste({ patientId })).find((e) => e.id === notizId);
     expect(mitTranskript?.transkript).toBe("Heute ging es um Schlaf.");
+    await api.doku.bearbeiten({ id: notizId, transkript: "Heute ging es um Schlaf und Arbeit." });
+    await api.doku.bearbeiten({ id: notizId, inhalt: "- Thema: Schlaf, Arbeit" });
+    const bearbeitet = (await api.doku.liste({ patientId })).find((e) => e.id === notizId);
+    expect(bearbeitet?.transkript).toBe("Heute ging es um Schlaf und Arbeit.");
+    expect(bearbeitet?.inhalt).toBe("- Thema: Schlaf, Arbeit");
+    expect(bearbeitet?.geaendertAm).toBeInstanceOf(Date);
+    await expect(api.doku.bearbeiten({ id: notizId })).rejects.toThrow();
     await api.doku.loeschen({ id: notizId });
     const geloescht = (await api.doku.liste({ patientId })).find((e) => e.id === notizId);
     expect(geloescht?.geloeschtAm).toBeInstanceOf(Date);

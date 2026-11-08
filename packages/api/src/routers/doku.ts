@@ -115,19 +115,49 @@ export const dokuRouter = router({
       return { id };
     }),
 
+  /** Zusammenfassung (`inhalt`) oder Transkript eines Eintrags ändern. Ein leeres Transkript wird entfernt. */
   bearbeiten: therapeutisch
-    .input(z.object({ id: z.uuid(), inhalt: z.string().trim().min(1).max(20_000) }))
+    .input(
+      z
+        .object({
+          id: z.uuid(),
+          inhalt: z.string().trim().min(1).max(20_000).optional(),
+          transkript: z.string().trim().max(200_000).optional(),
+        })
+        .refine((w) => w.inhalt !== undefined || w.transkript !== undefined, {
+          message: "Nichts zu speichern.",
+        }),
+    )
     .mutation(async ({ ctx, input }) => {
       const e = await eintragLaden(ctx, input.id);
+      if (e.geloeschtAm)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Gelöschte Einträge zuerst wiederherstellen.",
+        });
       await ctx.db
         .update(schema.dokuEintraege)
         .set({
-          inhaltEnc: enc(ctx.praxis, "doku_eintraege.inhalt", e.id, input.inhalt),
+          ...(input.inhalt !== undefined && {
+            inhaltEnc: enc(ctx.praxis, "doku_eintraege.inhalt", e.id, input.inhalt),
+          }),
+          ...(input.transkript !== undefined && {
+            transkriptEnc: input.transkript
+              ? enc(ctx.praxis, "doku_eintraege.transkript", e.id, input.transkript)
+              : null,
+          }),
           geaendertAm: new Date(),
         })
         .where(eq(schema.dokuEintraege.id, e.id));
-      // Die alte Fassung bleibt im Protokoll nachvollziehbar, ohne Inhalt: nur dass und wann geändert wurde.
-      await protokollieren(ctx, "geaendert", "doku", e.id);
+      // Die alte Fassung bleibt im Protokoll nachvollziehbar, ohne Inhalt: nur dass, wann und welches Feld.
+      await protokollieren(ctx, "geaendert", "doku", e.id, {
+        felder: [
+          input.inhalt !== undefined && "inhalt",
+          input.transkript !== undefined && "transkript",
+        ]
+          .filter(Boolean)
+          .join(", "),
+      });
     }),
 
   /**
