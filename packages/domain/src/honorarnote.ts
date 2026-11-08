@@ -102,3 +102,38 @@ export function fehlendeKostenzuschussAngaben(inhalt: HonorarnoteInhalt): string
   if (inhalt.sitzungen.length === 0) fehlt.push("mindestens eine Sitzung");
   return fehlt;
 }
+
+/** Honorar eines Termins: bei „nicht erschienen“ das Ausfallhonorar, sonst das Sitzungshonorar. */
+export function terminBetragCent(t: {
+  status: string;
+  honorarCent: number;
+  ausfallhonorarCent: number | null;
+}): number {
+  return t.status === "nicht_erschienen" ? (t.ausfallhonorarCent ?? 0) : t.honorarCent;
+}
+
+/**
+ * Was sich für einen Termin gleich am Terminal kassieren lässt, oder null.
+ * Erledigt oder ausgefallen mit Honorar; eine begonnene, noch geplante Sitzung wird dabei als
+ * erledigt vermerkt (`abschliessen`). Bezahlte oder schon abgerechnete Termine nicht: Die
+ * stehen auf einer Honorarnote und werden dort bezahlt.
+ */
+export function kassierbar(
+  t: {
+    status: string;
+    beginn: Date;
+    honorarCent: number;
+    ausfallhonorarCent: number | null;
+    bezahlt: boolean;
+    abgerechnet: boolean;
+  },
+  jetzt: Date,
+): { betragCent: number; abschliessen: boolean } | null {
+  if (t.bezahlt || t.abgerechnet) return null;
+  const betragCent = terminBetragCent(t);
+  if (betragCent <= 0) return null;
+  if (t.status === "erledigt" || t.status === "nicht_erschienen")
+    return { betragCent, abschliessen: false };
+  if (t.status === "geplant" && t.beginn <= jetzt) return { betragCent, abschliessen: true };
+  return null;
+}

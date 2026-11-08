@@ -38,6 +38,8 @@ export async function honorarnotePdf(
     storniertAm: string | null;
     /** Link zur Online-Zahlung (SumUp); erscheint als QR-Code, solange die Note offen ist. */
     zahllink?: string | null;
+    /** Schon mit Karte bezahlte Beträge, etwa gleich nach jeder Sitzung am Terminal. */
+    kartenzahlungen?: { am: string; betragCent: number }[];
   },
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
@@ -165,12 +167,29 @@ export async function honorarnotePdf(
   );
   rechtsbuendig(formatEuro(n.summeCent), rechts, { bold: true });
 
+  // Zahlungsvermerk: Die ÖGK erstattet nur gegen die bezahlte Honorarnote
+  // (https://oegk.at/psyche), daher jede Kartenzahlung mit Datum und Betrag.
+  const karte = vermerke.kartenzahlungen ?? [];
+  const kartenSumme = karte.reduce((s, z) => s + z.betragCent, 0);
+  const offen = Math.max(0, n.summeCent - kartenSumme);
+  for (const z of karte) {
+    platz(14);
+    y -= 14;
+    text(`Bezahlt mit Karte am ${formatDatum(z.am)}`, links);
+    rechtsbuendig(formatEuro(z.betragCent), rechts);
+  }
+  if (karte.length > 0 && !vermerke.bezahltAm && offen > 0) {
+    y -= 14;
+    text("Noch offen", links, { bold: true });
+    rechtsbuendig(formatEuro(offen), rechts, { bold: true });
+  }
+
   y -= 30;
   text(UST_BEFREIUNGSVERMERK, links, { farbe: grau });
-  if (n.praxis.iban && !vermerke.bezahltAm) {
+  if (n.praxis.iban && !vermerke.bezahltAm && offen > 0) {
     y -= 14;
     text(
-      `Bitte überweisen Sie den Betrag auf IBAN ${n.praxis.iban}, Verwendungszweck ${n.nummer}.`,
+      `Bitte überweisen Sie ${karte.length > 0 ? formatEuro(offen) : "den Betrag"} auf IBAN ${n.praxis.iban}, Verwendungszweck ${n.nummer}.`,
       links,
       { farbe: grau },
     );
@@ -202,7 +221,7 @@ export async function honorarnotePdf(
   y -= 12;
   rechtsbuendig("Unterschrift und Stempel", rechts, { groesse: 8 });
 
-  if (vermerke.zahllink && !vermerke.bezahltAm && !vermerke.storniertAm) {
+  if (vermerke.zahllink && !vermerke.bezahltAm && !vermerke.storniertAm && offen > 0) {
     const groesse = 72;
     qrZeichnen(seite, vermerke.zahllink, links, 70, groesse);
     y = 70 + groesse - 10;

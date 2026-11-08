@@ -1,6 +1,8 @@
 import { tageAddieren, wienDatum, wienZuDate, wochenBeginn } from "@lumiva/domain";
 import Link from "next/link";
 import { AktionsKnopf, Auswahl, Feld, Formular } from "@/components/formular";
+import { BezahltAbzeichen } from "@/components/noten-status";
+import { KassierenKnopf } from "@/components/sumup-zahlung";
 import { datumIso, euro, formatDatum, TERMIN_STATUS, uhrzeit } from "@/lib/format";
 import { terminAnlegen, terminLoeschen, terminStatus, terminVerschieben } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
@@ -18,13 +20,14 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
     typeof q.woche === "string" && /^\d{4}-\d{2}-\d{2}$/.test(q.woche) ? q.woche : heute,
   );
   const lumiva = await praxisApi();
-  const [termine, patienten, arten] = await Promise.all([
+  const [termine, patienten, arten, sumup] = await Promise.all([
     lumiva.termine.zeitraum({
       von: wienZuDate(woche, "00:00"),
       bis: wienZuDate(tageAddieren(woche, 7), "00:00"),
     }),
     lumiva.patienten.liste(),
     lumiva.praxis.sitzungsarten(),
+    lumiva.zahlungen.verfuegbar(),
   ]);
   const gewaehlt =
     typeof q.termin === "string" ? termine.find((t) => t.id === q.termin) : undefined;
@@ -139,40 +142,51 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                   ✕
                 </Link>
               </div>
-              <span className={`abzeichen self-start ${TERMIN_STATUS[gewaehlt.status]?.klasse}`}>
-                {TERMIN_STATUS[gewaehlt.status]?.text}
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {(["erledigt", "abgesagt", "geplant"] as const)
-                  .filter((s) => s !== gewaehlt.status)
-                  .map((s) => (
-                    <AktionsKnopf
-                      key={s}
-                      aktion={terminStatus}
-                      felder={{ id: gewaehlt.id, status: s }}
-                      text={TERMIN_STATUS[s]?.text ?? s}
-                    />
-                  ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`abzeichen ${TERMIN_STATUS[gewaehlt.status]?.klasse}`}>
+                  {TERMIN_STATUS[gewaehlt.status]?.text}
+                </span>
+                {gewaehlt.bezahltAm && <BezahltAbzeichen am={formatDatum(gewaehlt.bezahltAm)} />}
               </div>
-              {gewaehlt.status !== "nicht_erschienen" && (
-                <Formular
-                  aktion={terminStatus}
-                  knopf="Nicht erschienen"
-                  knopfKlasse="knopf-zweit"
-                  className="flex items-end gap-2"
-                >
-                  <input type="hidden" name="id" value={gewaehlt.id} />
-                  <input type="hidden" name="status" value="nicht_erschienen" />
-                  <label className="etikett flex-1 text-xs">
-                    Ausfallhonorar (€, optional)
-                    <input
-                      name="ausfallhonorar"
-                      inputMode="decimal"
-                      className="eingabe"
-                      placeholder="0"
-                    />
-                  </label>
-                </Formular>
+              {sumup.terminal && gewaehlt.kassieren && (
+                <KassierenKnopf terminId={gewaehlt.id} {...gewaehlt.kassieren} />
+              )}
+              {/* Bezahlte Sitzungen bleiben, wie sie sind; sonst stimmt die Zahlung nicht mehr. */}
+              {!gewaehlt.bezahltAm && (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {(["erledigt", "abgesagt", "geplant"] as const)
+                      .filter((s) => s !== gewaehlt.status)
+                      .map((s) => (
+                        <AktionsKnopf
+                          key={s}
+                          aktion={terminStatus}
+                          felder={{ id: gewaehlt.id, status: s }}
+                          text={TERMIN_STATUS[s]?.text ?? s}
+                        />
+                      ))}
+                  </div>
+                  {gewaehlt.status !== "nicht_erschienen" && (
+                    <Formular
+                      aktion={terminStatus}
+                      knopf="Nicht erschienen"
+                      knopfKlasse="knopf-zweit"
+                      className="flex items-end gap-2"
+                    >
+                      <input type="hidden" name="id" value={gewaehlt.id} />
+                      <input type="hidden" name="status" value="nicht_erschienen" />
+                      <label className="etikett flex-1 text-xs">
+                        Ausfallhonorar (€, optional)
+                        <input
+                          name="ausfallhonorar"
+                          inputMode="decimal"
+                          className="eingabe"
+                          placeholder="0"
+                        />
+                      </label>
+                    </Formular>
+                  )}
+                </>
               )}
               {gewaehlt.status === "geplant" && (
                 <>

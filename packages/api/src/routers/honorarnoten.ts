@@ -3,16 +3,25 @@ import {
   fehlendeKostenzuschussAngaben,
   formatHonorarnoteNummer,
   type HonorarnoteInhalt,
+  terminBetragCent,
   wienDatum,
 } from "@lumiva/domain";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { honorarnotePdf } from "../pdf";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router, therapeutisch } from "../trpc";
 import { dec, decOpt, enc, patientName, protokollieren } from "../werkzeuge";
-import { sumupKontoLaden, zahllinkUrl } from "../zahlungen";
+import {
+  bezahlteSitzungen,
+  noteAusgleichen,
+  notenZahlungen,
+  offenJeNote,
+  sumupKontoLaden,
+  termineAufNote,
+  zahllinkUrl,
+} from "../zahlungen";
 import { letzteDiagnose } from "./doku";
 
 type Ctx = Parameters<typeof patientLaden>[0];
@@ -32,24 +41,11 @@ async function offeneTermine(ctx: Ctx, patientId: string, db: Ctx["db"] = ctx.db
     )
     .orderBy(asc(schema.termine.beginn));
   if (termine.length === 0) return [];
-  const abgerechnet = await db
-    .select({ terminId: schema.honorarnotePositionen.terminId })
-    .from(schema.honorarnotePositionen)
-    .innerJoin(
-      schema.honorarnoten,
-      eq(schema.honorarnoten.id, schema.honorarnotePositionen.honorarnoteId),
-    )
-    .where(
-      and(
-        eq(schema.honorarnotePositionen.praxisId, ctx.praxis.id),
-        inArray(
-          schema.honorarnotePositionen.terminId,
-          termine.map((t) => t.termin.id),
-        ),
-        isNull(schema.honorarnoten.storniertAm),
-      ),
-    );
-  const vergeben = new Set(abgerechnet.map((a) => a.terminId));
+  const ids = termine.map((t) => t.termin.id);
+  const [vergeben, bezahlt] = await Promise.all([
+    termineAufNote(db, ctx.praxis.id, ids),
+    bezahlteSitzungen(db, ctx.praxis.id, ids),
+  ]);
   return termine
     .filter((t) => !vergeben.has(t.termin.id))
     .map(({ termin, sitzungsart }) => {
@@ -59,7 +55,9 @@ async function offeneTermine(ctx: Ctx, patientId: string, db: Ctx["db"] = ctx.db
         beginn: termin.beginn,
         dauerMinuten: Math.round((termin.ende.getTime() - termin.beginn.getTime()) / 60_000),
         bezeichnung: ausfall ? "Ausfallhonorar (nicht erschienen)" : (sitzungsart ?? "Sitzung"),
-        honorarCent: ausfall ? (termin.ausfallhonorarCent ?? 0) : termin.honorarCent,
+        honorarCent: terminBetragCent(termin),
+        /** Gleich nach der Sitzung mit Karte bezahlt. */
+        bezahltAm: bezahlt.get(termin.id)?.am ?? null,
       };
     })
     .filter((t) => t.honorarCent > 0);
@@ -103,8 +101,16 @@ export const honorarnotenRouter = router({
           ),
         )
         .orderBy(desc(schema.honorarnoten.jahr), desc(schema.honorarnoten.laufendeNummer));
+      // Teilweise mit Karte bezahlt: betrifft nur offene Noten, bezahlte zeigen ihr Datum.
+      const offen = await offenJeNote(
+        ctx.db,
+        ctx.praxis.id,
+        zeilen.map((z) => z.note).filter((n) => !n.bezahltAm && !n.storniertAm),
+      );
       return zeilen.map(({ note, vornameEnc, nachnameEnc }) => ({
         id: note.id,
+        /** Noch offen nach Kartenzahlungen; bei bezahlten und stornierten Noten 0. */
+        offenCent: offen.get(note.id) ?? 0,
         nummer: formatHonorarnoteNummer(note.jahr, note.laufendeNummer),
         patientId: note.patientId,
         patientName: patientName(ctx.praxis, note.patientId, vornameEnc, nachnameEnc),
@@ -199,7 +205,7 @@ export const honorarnotenRouter = router({
         });
       }
 
-      const nummer = await ctx.db.transaction(async (tx) => {
+      const { nummer, bezahlt } = await ctx.db.transaction(async (tx) => {
         // Patient:in sperren und erneut prüfen, damit gleichzeitige Anfragen (Doppelklick)
         // denselben Termin nicht zweimal abrechnen.
         await tx
@@ -237,9 +243,11 @@ export const honorarnotenRouter = router({
             honorarCent: t.honorarCent,
           })),
         );
-        return inhalt.nummer;
+        // Wurden alle Sitzungen schon am Terminal bezahlt, ist die Note gleich bezahlt.
+        const bezahlt = await noteAusgleichen(tx as unknown as Ctx["db"], ctx.praxis.id, id);
+        return { nummer: inhalt.nummer, bezahlt };
       });
-      await protokollieren(ctx, "ausgestellt", "honorarnote", id, { nummer });
+      await protokollieren(ctx, "ausgestellt", "honorarnote", id, { nummer, bezahlt });
       return { id, nummer };
     }),
 
@@ -269,11 +277,15 @@ export const honorarnotenRouter = router({
   /** PDF als Base64, damit es über JSON (Web und App) transportiert werden kann. */
   pdf: therapeutisch.input(z.object({ id: z.uuid() })).query(async ({ ctx, input }) => {
     const { note, inhalt } = await noteLaden(ctx, input.id);
-    const sumup = await sumupKontoLaden(ctx.db, ctx.praxis);
+    const [sumup, kartenzahlungen] = await Promise.all([
+      sumupKontoLaden(ctx.db, ctx.praxis),
+      notenZahlungen(ctx.db, ctx.praxis.id, note.id),
+    ]);
     const bytes = await honorarnotePdf(inhalt, {
       bezahltAm: note.bezahltAm,
       storniertAm: note.storniertAm,
       zahllink: sumup ? zahllinkUrl(ctx.praxis.schluessel, note.id) : null,
+      kartenzahlungen,
     });
     await protokollieren(ctx, "pdf", "honorarnote", note.id);
     return {

@@ -10,6 +10,7 @@ import {
   type AnyPgColumn,
   bigserial,
   boolean,
+  check,
   date,
   foreignKey,
   index,
@@ -289,8 +290,9 @@ export const sumupKonten = pgTable("sumup_konten", {
 });
 
 /**
- * Zahlungsversuche über SumUp. An SumUp gehen nur Betrag und Nummer der Honorarnote,
- * nie Name oder Diagnose. Der Betrag ist eine Kopie der Summe zum Zeitpunkt des Versuchs.
+ * Zahlungsversuche über SumUp: gleich nach einer Sitzung (terminId) oder für eine Honorarnote
+ * (honorarnoteId). An SumUp gehen nur Betrag und Nummer bzw. Datum, nie Name oder Diagnose.
+ * Der Betrag ist eine Kopie zum Zeitpunkt des Versuchs.
  */
 export const zahlungen = pgTable(
   "zahlungen",
@@ -299,7 +301,9 @@ export const zahlungen = pgTable(
     praxisId: uuid()
       .notNull()
       .references(() => praxen.id),
-    honorarnoteId: uuid().notNull(),
+    /** Genau eines von beiden: Zahlung einer Honorarnote oder einer einzelnen Sitzung. */
+    honorarnoteId: uuid(),
+    terminId: uuid(),
     art: zahlungArt().notNull(),
     status: zahlungStatus().notNull().default("offen"),
     betragCent: integer().notNull(),
@@ -313,10 +317,16 @@ export const zahlungen = pgTable(
   },
   (t) => [
     index().on(t.honorarnoteId),
+    index().on(t.terminId),
     foreignKey({
       columns: [t.praxisId, t.honorarnoteId],
       foreignColumns: [honorarnoten.praxisId, honorarnoten.id],
     }),
+    foreignKey({
+      columns: [t.praxisId, t.terminId],
+      foreignColumns: [termine.praxisId, termine.id],
+    }),
+    check("zahlung_ziel", sql`num_nonnulls(${t.honorarnoteId}, ${t.terminId}) = 1`),
   ],
 );
 

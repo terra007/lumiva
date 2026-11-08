@@ -298,8 +298,15 @@ async function abfragen(fn: () => Promise<ZahlungsStand>): Promise<ZahlungsStand
   }
 }
 
-export async function terminalZahlungStarten(honorarnoteId: string): Promise<ZahlungsStand> {
-  return abfragen(async () => (await api()).zahlungen.terminalStarten({ honorarnoteId }));
+export type ZahlungsZiel = { honorarnoteId: string } | { terminId: string; abschliessen?: boolean };
+
+export async function terminalZahlungStarten(ziel: ZahlungsZiel): Promise<ZahlungsStand> {
+  return abfragen(async () => {
+    const stand = await (await api()).zahlungen.terminalStarten(ziel);
+    // Eine eben als erledigt vermerkte Sitzung soll sofort so angezeigt werden.
+    if ("terminId" in ziel) revalidatePath("/", "layout");
+    return stand;
+  });
 }
 
 export async function zahlungStatus(zahlungId: string): Promise<ZahlungsStand> {
