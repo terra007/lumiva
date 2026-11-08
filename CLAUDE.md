@@ -24,6 +24,7 @@ pnpm format        # Biome mit --write
 pnpm typecheck
 pnpm test          # Vitest; DB-Tests laufen gegen PGlite, ohne Server
 pnpm db:generate   # neue Migration nach Schemaänderung
+pnpm --filter @lumiva/web e2e   # Playwright gegen eigenen Server (Port 3100, leere Datenbank)
 pnpm --filter @lumiva/web dev
 pnpm --filter @lumiva/mobile start
 ```
