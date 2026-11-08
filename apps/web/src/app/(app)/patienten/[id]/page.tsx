@@ -4,7 +4,7 @@ import { AktionsKnopf, Feld, Formular } from "@/components/formular";
 import { Icd10Auswahl } from "@/components/icd10-auswahl";
 import { KiAufnahme } from "@/components/ki-aufnahme";
 import { BezahltAbzeichen, NotenStatus } from "@/components/noten-status";
-import { KassierenKnopf } from "@/components/sumup-zahlung";
+import { KassierenKnopf, TerminalZahlung } from "@/components/sumup-zahlung";
 import {
   DOKU_ART,
   datumIso,
@@ -284,8 +284,8 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                 <input type="hidden" name="patientId" value={p.id} />
                 <ul className="flex flex-col gap-2 text-sm">
                   {offen.map((t) => (
-                    <li key={t.id}>
-                      <label className="flex items-center gap-3">
+                    <li key={t.id} className="flex items-center gap-3">
+                      <label className="flex flex-1 items-center gap-3">
                         <input
                           type="checkbox"
                           name="terminIds"
@@ -298,6 +298,10 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                         {t.bezahltAm && <BezahltAbzeichen />}
                         <span className="tabular-nums">{euro(t.honorarCent)}</span>
                       </label>
+                      {/* Jede Sitzung einzeln am Terminal; die Note rechnet es später an. */}
+                      {sumup.terminal && !t.bezahltAm && (
+                        <TerminalZahlung ziel={{ terminId: t.id }} />
+                      )}
                     </li>
                   ))}
                 </ul>
