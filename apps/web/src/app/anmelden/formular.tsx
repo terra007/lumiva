@@ -30,7 +30,9 @@ export function AnmeldeFormular() {
             ? "Mit dieser E-Mail gibt es schon ein Konto. Bitte melde dich an."
             : error.code === "PASSWORD_TOO_SHORT"
               ? "Das Passwort braucht mindestens 10 Zeichen."
-              : (error.message ?? "Das hat nicht geklappt."),
+              : error.status === 429
+                ? "Zu viele Versuche. Bitte warte eine Minute und versuche es dann erneut."
+                : (error.message ?? "Das hat nicht geklappt."),
       );
       return;
     }
