@@ -219,7 +219,11 @@ export async function dokuAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
 
 export async function dokuBearbeiten(_: Ergebnis, d: FormData): Promise<Ergebnis> {
   return ausfuehren(async () =>
-    (await api()).doku.bearbeiten({ id: s(d, "id"), inhalt: s(d, "inhalt") }),
+    (await api()).doku.bearbeiten(
+      s(d, "feld") === "transkript"
+        ? { id: s(d, "id"), transkript: s(d, "text") }
+        : { id: s(d, "id"), inhalt: s(d, "text") },
+    ),
   );
 }
 

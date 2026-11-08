@@ -62,6 +62,20 @@ test("Dokumentation löschen und aus dem Papierkorb wiederherstellen", async ({ 
   await expect(page.getByText("Der Papierkorb ist leer.")).toBeVisible();
 });
 
+test("Zusammenfassung mit dem Bleistift bearbeiten", async ({ page }) => {
+  await neuePraxis(page);
+  const patientId = await patientAnlegen(page, "Clara", "Moser");
+  await dokuMitDiagnose(page, patientId, "Erste Fassung");
+  await page.getByRole("button", { name: "Zusammenfassung bearbeiten" }).click();
+  await page.getByLabel("Zusammenfassung", { exact: true }).fill("Korrigierte Fassung");
+  await page.locator("ol").getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(page.locator("ol p").getByText("Korrigierte Fassung")).toBeVisible();
+  await expect(page.getByText(/geändert/)).toBeVisible();
+  await page.reload();
+  await expect(page.locator("ol p").getByText("Korrigierte Fassung")).toBeVisible();
+  await expect(page.getByText("Erste Fassung")).toHaveCount(0);
+});
+
 test("Aufgaben anlegen und erledigen", async ({ page }) => {
   await neuePraxis(page);
   await page.goto("/aufgaben");

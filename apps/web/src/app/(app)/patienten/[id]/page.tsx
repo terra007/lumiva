@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DokuText } from "@/components/doku-text";
 import { AktionsKnopf, Feld, Formular } from "@/components/formular";
 import { Icd10Auswahl } from "@/components/icd10-auswahl";
 import { KiAufnahme } from "@/components/ki-aufnahme";
@@ -246,9 +247,13 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                         )}
                       </span>
                     </div>
-                    <p className="whitespace-pre-wrap text-sm">
-                      {ansicht === "transkripte" ? e.transkript : e.inhalt}
-                    </p>
+                    <DokuText
+                      key={`${ansicht}-${e.id}`}
+                      id={e.id}
+                      feld={ansicht === "transkripte" ? "transkript" : "inhalt"}
+                      text={(ansicht === "transkripte" ? e.transkript : e.inhalt) ?? ""}
+                      bearbeitbar={!e.geloeschtAm}
+                    />
                   </li>
                 ))}
               </ol>
