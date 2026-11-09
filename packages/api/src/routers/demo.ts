@@ -132,7 +132,9 @@ export const demoRouter = router({
             JSON.stringify({
               telefon: "+43 660 1234567",
               email: "",
-              anschrift: "Musterstraße 1, 1010 Wien",
+              strasse: "Musterstraße 1",
+              plz: "1010",
+              ort: "Wien",
             }),
           ),
           versicherungstraeger: p.traeger,

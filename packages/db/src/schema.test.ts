@@ -10,7 +10,13 @@ beforeAll(async () => {
   db = await datenbankVerbinden({ art: "pglite" });
   const [praxis] = await db
     .insert(schema.praxen)
-    .values({ name: "Praxis Test", anschrift: "Wien", datenschluesselEnc: "x" })
+    .values({
+      name: "Praxis Test",
+      strasse: "Ring 1",
+      plz: "1010",
+      ort: "Wien",
+      datenschluesselEnc: "x",
+    })
     .returning();
   praxisId = praxis?.id ?? "";
 });
@@ -68,7 +74,13 @@ describe("Datenbankschema", () => {
   it("verhindert Verweise auf Patienten einer anderen Praxis", async () => {
     const [andere] = await db
       .insert(schema.praxen)
-      .values({ name: "Andere Praxis", anschrift: "Graz", datenschluesselEnc: "x" })
+      .values({
+        name: "Andere Praxis",
+        strasse: "Hauptplatz 1",
+        plz: "8010",
+        ort: "Graz",
+        datenschluesselEnc: "x",
+      })
       .returning();
     const [patient] = await db
       .insert(schema.patienten)

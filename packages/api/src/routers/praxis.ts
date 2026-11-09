@@ -7,7 +7,13 @@ import { angemeldet, inhaberIn, inPraxis, oeffentlich, router } from "../trpc";
 
 const praxisDaten = z.object({
   name: z.string().trim().min(2).max(120),
-  anschrift: z.string().trim().min(5).max(300),
+  strasse: z.string().trim().min(3).max(200),
+  // Österreichische Postleitzahlen sind vierstellig.
+  plz: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, "vier Ziffern"),
+  ort: z.string().trim().min(2).max(100),
   telefon: z.string().trim().max(40).optional(),
   email: z.email().optional().or(z.literal("")),
   iban: z
@@ -47,7 +53,9 @@ export const praxisRouter = router({
       await tx.insert(schema.praxen).values({
         id,
         name: input.name,
-        anschrift: input.anschrift,
+        strasse: input.strasse,
+        plz: input.plz,
+        ort: input.ort,
         telefon: input.telefon || null,
         email: input.email || null,
         iban: input.iban || null,
@@ -83,7 +91,9 @@ export const praxisRouter = router({
     if (!praxis) throw new TRPCError({ code: "NOT_FOUND" });
     return {
       name: praxis.name,
-      anschrift: praxis.anschrift,
+      strasse: praxis.strasse,
+      plz: praxis.plz,
+      ort: praxis.ort,
       telefon: praxis.telefon ?? "",
       email: praxis.email ?? "",
       iban: praxis.iban ?? "",
@@ -97,7 +107,9 @@ export const praxisRouter = router({
       .update(schema.praxen)
       .set({
         name: input.name,
-        anschrift: input.anschrift,
+        strasse: input.strasse,
+        plz: input.plz,
+        ort: input.ort,
         telefon: input.telefon || null,
         email: input.email || null,
         iban: input.iban || null,

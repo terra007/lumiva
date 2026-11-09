@@ -37,7 +37,12 @@ describe("LUMIVA-API", () => {
     let api = createCaller(await kontextFuer(maria));
     await expect(api.patienten.liste()).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
 
-    await api.praxis.anlegen({ name: "Praxis Muster", anschrift: "Musterstraße 1, 1010 Wien" });
+    await api.praxis.anlegen({
+      name: "Praxis Muster",
+      strasse: "Musterstraße 1",
+      plz: "1010",
+      ort: "Wien",
+    });
     api = createCaller(await kontextFuer(maria));
     const [einzel] = (await api.praxis.sitzungsarten()).filter((s) => s.name === "Einzelsitzung");
     expect(einzel?.honorarCent).toBe(9000);
@@ -48,7 +53,7 @@ describe("LUMIVA-API", () => {
       geburtsdatum: "1988-04-12",
       svNummer: "1237 010180",
       versicherungstraeger: "oegk",
-      kontakt: { telefon: "", email: "", anschrift: "Testgasse 2, 1020 Wien" },
+      kontakt: { telefon: "", email: "", strasse: "Testgasse 2", plz: "1020", ort: "Wien" },
     });
 
     // Gesundheitsdaten liegen nur verschlüsselt in der Datenbank.
@@ -75,6 +80,7 @@ describe("LUMIVA-API", () => {
 
     const details = await api.patienten.details({ id: patientId });
     expect(details.sitzungen).toBe(1);
+    expect(details.kontakt).toMatchObject({ strasse: "Testgasse 2", plz: "1020", ort: "Wien" });
     expect(details.hinweise).toEqual([{ art: "aerztliche-bestaetigung-fehlt" }]);
 
     // Ohne Diagnose keine Honorarnote für den Kostenzuschuss.
@@ -160,7 +166,12 @@ describe("LUMIVA-API", () => {
   it("trennt Praxen und schützt Akten vor der Assistenz", async () => {
     const fremd = await benutzerAnlegen("fremd", "Dr. Fremd");
     let apiFremd = createCaller(await kontextFuer(fremd));
-    await apiFremd.praxis.anlegen({ name: "Andere Praxis", anschrift: "Hauptplatz 1, 8010 Graz" });
+    await apiFremd.praxis.anlegen({
+      name: "Andere Praxis",
+      strasse: "Hauptplatz 1",
+      plz: "8010",
+      ort: "Graz",
+    });
     apiFremd = createCaller(await kontextFuer(fremd));
     expect(await apiFremd.patienten.liste()).toEqual([]);
 
@@ -237,7 +248,7 @@ describe("LUMIVA-API", () => {
   it("legt Demo-Daten an", async () => {
     const demo = await benutzerAnlegen("demo", "Demo Therapeutin");
     let api = createCaller(await kontextFuer(demo));
-    await api.praxis.anlegen({ name: "Demo-Praxis", anschrift: "Ring 1, 1010 Wien" });
+    await api.praxis.anlegen({ name: "Demo-Praxis", strasse: "Ring 1", plz: "1010", ort: "Wien" });
     api = createCaller(await kontextFuer(demo));
     await api.demo.laden();
     expect(await api.patienten.liste()).toHaveLength(6);

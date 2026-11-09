@@ -1,0 +1,1 @@
+ALTER TABLE "praxen" DROP COLUMN "anschrift";

@@ -1,5 +1,6 @@
 import { schema } from "@lumiva/db";
 import { entschluesseln, verschluesseln } from "@lumiva/db/crypto";
+import { type Anschrift, anschriftZerlegen, LEERE_ANSCHRIFT } from "@lumiva/domain";
 import type { Kontext, PraxisZugang } from "./trpc";
 
 /** Verschlüsselt einen Wert für genau diese Zeile und Spalte. */
@@ -18,6 +19,27 @@ export function decOpt(
   wert: string | null,
 ): string | null {
   return wert === null ? null : dec(p, feld, id, wert);
+}
+
+/** Kontaktdaten eines Patienten, wie sie verschlüsselt in `patienten.kontakt` liegen. */
+export type Kontakt = Anschrift & { telefon: string; email: string };
+
+/**
+ * Liest die entschlüsselten Kontaktdaten. Ältere Einträge haben nur eine einzeilige
+ * `anschrift`; die wird beim Lesen in Straße, PLZ und Ort zerlegt und beim nächsten
+ * Speichern getrennt abgelegt.
+ */
+export function kontaktLesen(text: string | null): Kontakt {
+  const roh = (text ? JSON.parse(text) : {}) as Partial<Kontakt> & { anschrift?: string };
+  const anschrift =
+    roh.strasse === undefined && roh.anschrift ? anschriftZerlegen(roh.anschrift) : LEERE_ANSCHRIFT;
+  return {
+    telefon: roh.telefon ?? "",
+    email: roh.email ?? "",
+    strasse: roh.strasse ?? anschrift.strasse,
+    plz: roh.plz ?? anschrift.plz,
+    ort: roh.ort ?? anschrift.ort,
+  };
 }
 
 /** Vor- und Nachname eines Patienten aus den verschlüsselten Spalten. */

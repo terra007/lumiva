@@ -34,7 +34,9 @@ export async function registrieren(page: Page, name = "Mag. Maria Muster", email
 
 export async function praxisAnlegen(page: Page, name = "Praxis Muster") {
   await page.getByLabel("Name der Praxis").fill(name);
-  await page.getByLabel("Anschrift").fill("Musterstraße 1, 1010 Wien");
+  await page.getByLabel("Straße und Hausnummer").fill("Musterstraße 1");
+  await page.getByLabel(/^PLZ/).fill("1010");
+  await page.getByLabel(/^Ort\b/).fill("Wien");
   await page.getByLabel("IBAN").fill("AT61 1904 3002 3457 3201");
   await page.getByRole("button", { name: "Praxis anlegen" }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -53,7 +55,9 @@ export async function patientAnlegen(page: Page, vorname = "Anna", nachname = "B
   await page.getByLabel("Nachname").fill(nachname);
   await page.getByLabel("Geburtsdatum").fill("1988-04-12");
   await page.getByLabel("Sozialversicherungsnummer").fill("1237 010180");
-  await page.getByLabel("Anschrift").fill("Testgasse 2, 1020 Wien");
+  await page.getByLabel("Straße und Hausnummer").fill("Testgasse 2");
+  await page.getByLabel(/^PLZ/).fill("1020");
+  await page.getByLabel(/^Ort\b/).fill("Wien");
   await page.getByRole("button", { name: "Anlegen" }).click();
   await expect(page).toHaveURL(/\/patienten\/[0-9a-f-]{36}$/);
   return page.url().split("/").pop() ?? "";

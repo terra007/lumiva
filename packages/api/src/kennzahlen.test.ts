@@ -26,7 +26,9 @@ describe("Kennzahlen", () => {
   it("zählt Sitzungen, Umsatz, Patienten und Abwesenheiten im Zeitraum", async () => {
     await createCaller(await kontextFuer(maria)).praxis.anlegen({
       name: "Praxis Muster",
-      anschrift: "Musterstraße 1, 1010 Wien",
+      strasse: "Musterstraße 1",
+      plz: "1010",
+      ort: "Wien",
     });
     const ctx = await kontextFuer(maria);
     const api = createCaller(ctx);
@@ -37,7 +39,7 @@ describe("Kennzahlen", () => {
       geburtsdatum: "1988-04-12",
       svNummer: "1237 010180",
       versicherungstraeger: "oegk",
-      kontakt: { telefon: "", email: "", anschrift: "Testgasse 2, 1020 Wien" },
+      kontakt: { telefon: "", email: "", strasse: "Testgasse 2", plz: "1020", ort: "Wien" },
     });
     // Montags 9:00 in Wien: 26.10., 2.11., 9.11., 16.11., 23.11.
     await api.termine.anlegen({

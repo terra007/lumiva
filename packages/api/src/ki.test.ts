@@ -49,7 +49,12 @@ beforeAll(async () => {
   basis = `http://127.0.0.1:${(attrappe.address() as AddressInfo).port}`;
   db = await datenbankVerbinden({ art: "pglite" });
   await db.insert(schema.user).values(benutzer);
-  await (await api()).praxis.anlegen({ name: "KI-Praxis", anschrift: "Ring 1, 1010 Wien" });
+  await (await api()).praxis.anlegen({
+    name: "KI-Praxis",
+    strasse: "Ring 1",
+    plz: "1010",
+    ort: "Wien",
+  });
 });
 
 afterEach(() => {
@@ -79,7 +84,7 @@ describe("KI-Doku", () => {
       geburtsdatum: "1990-01-01",
       svNummer: "",
       versicherungstraeger: "privat",
-      kontakt: { telefon: "", email: "", anschrift: "" },
+      kontakt: { telefon: "", email: "", strasse: "", plz: "", ort: "" },
     });
     const eingabe = {
       patientId,

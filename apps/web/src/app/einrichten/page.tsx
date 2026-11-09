@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Feld, Formular } from "@/components/formular";
+import { AnschriftFelder, Feld, Formular } from "@/components/formular";
 import { praxisAnlegen } from "@/server/aktionen";
 import { api } from "@/server/lumiva";
 
@@ -24,12 +24,7 @@ export default async function Einrichten() {
             pflicht
             placeholder="Praxis für Psychotherapie Muster"
           />
-          <Feld
-            name="anschrift"
-            label="Anschrift"
-            pflicht
-            placeholder="Musterstraße 1, 1010 Wien"
-          />
+          <AnschriftFelder pflicht />
           <Feld
             name="berufsbezeichnung"
             label="Deine Berufsbezeichnung"

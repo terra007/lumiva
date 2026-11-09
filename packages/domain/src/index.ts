@@ -1,3 +1,4 @@
+export * from "./anschrift";
 export * from "./aufbewahrung";
 export * from "./feiertage";
 export * from "./geld";
