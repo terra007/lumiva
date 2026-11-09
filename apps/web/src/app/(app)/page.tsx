@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AktionsKnopf } from "@/components/formular";
+import { Kennzahl } from "@/components/kennzahl";
 import { euro, formatDatumLang, hinweisText, TERMIN_STATUS, uhrzeit } from "@/lib/format";
 import { demoLaden, terminStatus } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
@@ -107,25 +108,5 @@ export default async function Uebersicht() {
         </section>
       </div>
     </div>
-  );
-}
-
-function Kennzahl({
-  titel,
-  wert,
-  unten,
-  href,
-}: {
-  titel: string;
-  wert: string;
-  unten?: string;
-  href: string;
-}) {
-  return (
-    <Link href={href} className="karte flex flex-col gap-1 transition hover:border-akzent/60">
-      <span className="text-muted text-sm">{titel}</span>
-      <span className="font-semibold text-3xl tabular-nums tracking-tight">{wert}</span>
-      {unten && <span className="text-muted text-xs">{unten}</span>}
-    </Link>
   );
 }

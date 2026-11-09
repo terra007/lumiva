@@ -3,6 +3,7 @@ import { aufgabenRouter } from "./routers/aufgaben";
 import { demoRouter } from "./routers/demo";
 import { dokuRouter } from "./routers/doku";
 import { honorarnotenRouter } from "./routers/honorarnoten";
+import { kennzahlenRouter } from "./routers/kennzahlen";
 import { kiRouter } from "./routers/ki";
 import { patientenRouter } from "./routers/patienten";
 import { praxisRouter } from "./routers/praxis";
@@ -21,6 +22,7 @@ export const appRouter = router({
   honorarnoten: honorarnotenRouter,
   aufgaben: aufgabenRouter,
   uebersicht: uebersichtRouter,
+  kennzahlen: kennzahlenRouter,
   demo: demoRouter,
   ki: kiRouter,
   zahlungen: zahlungenRouter,
