@@ -9,6 +9,7 @@ const PUNKTE = [
   { href: "/patienten", text: "Patienten" },
   { href: "/honorarnoten", text: "Honorarnoten" },
   { href: "/aufgaben", text: "Aufgaben" },
+  { href: "/kennzahlen", text: "Kennzahlen" },
   { href: "/einstellungen", text: "Einstellungen" },
 ];
 
