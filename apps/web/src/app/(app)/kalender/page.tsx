@@ -6,6 +6,12 @@ import { KassierenKnopf } from "@/components/sumup-zahlung";
 import { datumIso, euro, formatDatum, TERMIN_STATUS, uhrzeit } from "@/lib/format";
 import { terminAnlegen, terminLoeschen, terminStatus, terminVerschieben } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
+import {
+  ABWESEND_KLASSE,
+  AbwesenheitenKarte,
+  abwesenheitText,
+  FEIERTAG_KLASSE,
+} from "./abwesenheiten";
 
 const START = 7;
 const ENDE = 21;
@@ -24,7 +30,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
     typeof q.woche === "string" && /^\d{4}-\d{2}-\d{2}$/.test(q.woche) ? q.woche : heute,
   );
   const lumiva = await praxisApi();
-  const [termine, patienten, arten, sumup] = await Promise.all([
+  const [termine, patienten, arten, sumup, frei, kommende] = await Promise.all([
     lumiva.termine.zeitraum({
       von: wienZuDate(woche, "00:00"),
       bis: wienZuDate(tageAddieren(woche, 7), "00:00"),
@@ -32,6 +38,8 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
     lumiva.patienten.liste(),
     lumiva.praxis.sitzungsarten(),
     lumiva.zahlungen.verfuegbar(),
+    lumiva.abwesenheiten.zeitraum({ von: woche, bis: tageAddieren(woche, 6) }),
+    lumiva.abwesenheiten.zeitraum({ von: heute, bis: tageAddieren(heute, 365) }),
   ]);
   const gewaehlt =
     typeof q.termin === "string" ? termine.find((t) => t.id === q.termin) : undefined;
@@ -52,6 +60,11 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
     uhrzeit: vorUhrzeit ?? "09:00",
   };
   const patientParam = vorPatient ? `&patient=${encodeURIComponent(vorPatient)}` : "";
+  const feiertag = (tag: string) => frei.feiertage.find((f) => f.datum === tag);
+  const abwesend = (tag: string) => frei.abwesenheiten.filter((a) => a.von <= tag && a.bis >= tag);
+  /** Hintergrund der Tagesspalte: Feiertag vor eigener Abwesenheit. */
+  const tagKlasse = (tag: string) =>
+    feiertag(tag) ? FEIERTAG_KLASSE : abwesend(tag).some((a) => a.eigene) ? ABWESEND_KLASSE : "";
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,12 +101,25 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
             {tage.map((t, i) => (
               <div
                 key={t}
-                className={`border-line border-b border-l px-2 py-2 text-center text-sm ${t === heute ? "bg-akzent/10 font-semibold" : ""}`}
+                className={`border-line border-b border-l px-2 py-2 text-center text-sm ${t === heute ? "bg-akzent/10 font-semibold" : tagKlasse(t)}`}
               >
                 {TAGE[i]}{" "}
                 <span className="text-muted tabular-nums">
                   {t.slice(8, 10)}.{t.slice(5, 7)}.
                 </span>
+                {feiertag(t) && (
+                  <span className="block truncate font-medium text-rose-700 text-xs dark:text-rose-300">
+                    {feiertag(t)?.name}
+                  </span>
+                )}
+                {abwesend(t).map((a) => (
+                  <span
+                    key={a.id}
+                    className="block truncate font-normal text-amber-800 text-xs dark:text-amber-300"
+                  >
+                    {abwesenheitText(a)}
+                  </span>
+                ))}
               </div>
             ))}
             <div className="relative" style={{ height: (ENDE - START) * PX_PRO_STUNDE }}>
@@ -110,7 +136,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
             {tage.map((tag) => (
               <div
                 key={tag}
-                className="relative border-line border-l"
+                className={`relative border-line border-l ${tagKlasse(tag)}`}
                 style={{ height: (ENDE - START) * PX_PRO_STUNDE }}
               >
                 {STUNDEN.map((stunde) => (
@@ -338,6 +364,11 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
               </Formular>
             )}
           </section>
+
+          <AbwesenheitenKarte
+            kommende={kommende.abwesenheiten}
+            vorschlag={tage.includes(heute) ? heute : woche}
+          />
         </aside>
       </div>
     </div>

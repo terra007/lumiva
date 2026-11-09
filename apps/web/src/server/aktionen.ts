@@ -25,6 +25,10 @@ const FELDNAMEN: Record<string, string> = {
   terminIds: "Termine",
   haendlerCode: "Händlercode",
   code: "Kopplungscode",
+  von: "Von",
+  bis: "Bis",
+  art: "Art",
+  notiz: "Notiz",
 };
 
 function fehlertext(e: unknown): string | null {
@@ -355,4 +359,21 @@ export async function aufgabeErledigen(_: Ergebnis, d: FormData): Promise<Ergebn
 
 export async function aufgabeLoeschen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
   return ausfuehren(async () => (await api()).aufgaben.loeschen({ id: s(d, "id") }));
+}
+
+// Abwesenheiten
+
+export async function abwesenheitAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () =>
+    (await api()).abwesenheiten.anlegen({
+      von: s(d, "von"),
+      bis: s(d, "bis") || s(d, "von"),
+      art: s(d, "art") as "urlaub",
+      notiz: optional(d, "notiz"),
+    }),
+  );
+}
+
+export async function abwesenheitLoeschen(_: Ergebnis, d: FormData): Promise<Ergebnis> {
+  return ausfuehren(async () => (await api()).abwesenheiten.loeschen({ id: s(d, "id") }));
 }

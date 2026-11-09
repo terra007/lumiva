@@ -347,6 +347,27 @@ export const aufgaben = pgTable(
   (t) => [index().on(t.praxisId, t.zustaendigId), gleichePraxis(t, patienten)],
 );
 
+/**
+ * Urlaub und andere Abwesenheiten eines Therapeuten, ganztägig von `von` bis einschließlich `bis`.
+ * Art und Notiz sind verschlüsselt: Ein Krankenstand ist ein Gesundheitsdatum (Art. 9 DSGVO).
+ */
+export const abwesenheiten = pgTable(
+  "abwesenheiten",
+  {
+    id: id(),
+    praxisId: uuid()
+      .notNull()
+      .references(() => praxen.id),
+    benutzerId: text().notNull(),
+    von: date().notNull(),
+    bis: date().notNull(),
+    artEnc: text().notNull(),
+    notizEnc: text(),
+    erstelltAm: erstelltAm(),
+  },
+  (t) => [index().on(t.praxisId, t.bis), check("abwesenheit_zeitraum", sql`${t.bis} >= ${t.von}`)],
+);
+
 /** Protokoll jedes Zugriffs auf und jeder Änderung an Patientendaten. Nur anhängen, nie ändern. */
 export const protokoll = pgTable(
   "protokoll",
