@@ -124,3 +124,18 @@ test("Beispieldaten füllen eine leere Praxis", async ({ page }) => {
   await page.goto("/patienten");
   await expect(page.getByRole("row")).toHaveCount(7);
 });
+
+test("Klick ins Kalenderraster schlägt Tag und Uhrzeit für den neuen Termin vor", async ({
+  page,
+}) => {
+  await neuePraxis(page);
+  await patientAnlegen(page, "Clara", "Moser");
+  await page.goto("/kalender?woche=2026-11-09");
+  await page.getByRole("link", { name: "Neuer Termin am 11.11.2026 um 14:30" }).click();
+  await expect(page).toHaveURL(/datum=2026-11-11&uhrzeit=14:30/);
+  const formular = page.locator("#neuer-termin");
+  await expect(formular.getByLabel("Datum")).toHaveValue("2026-11-11");
+  await expect(formular.getByLabel("Uhrzeit")).toHaveValue("14:30");
+  await formular.getByRole("button", { name: "Termin anlegen" }).click();
+  await expect(page.getByRole("link", { name: /14:30 Clara Moser/ })).toBeVisible();
+});

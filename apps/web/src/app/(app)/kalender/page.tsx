@@ -17,6 +17,10 @@ const START = 7;
 const ENDE = 21;
 const PX_PRO_STUNDE = 56;
 const STUNDEN = Array.from({ length: ENDE - START }, (_, i) => START + i);
+const HALBSTUNDEN = STUNDEN.flatMap((h) => {
+  const hh = String(h).padStart(2, "0");
+  return [`${hh}:00`, `${hh}:30`];
+});
 const TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 export default async function Kalender({ searchParams }: PageProps<"/kalender">) {
@@ -40,8 +44,22 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
   const gewaehlt =
     typeof q.termin === "string" ? termine.find((t) => t.id === q.termin) : undefined;
   const vorPatient = typeof q.patient === "string" ? q.patient : undefined;
+  // Klick auf eine freie Stelle im Raster belegt „Neuer Termin“ mit Tag und Uhrzeit vor.
+  const vorDatum =
+    typeof q.datum === "string" && /^\d{4}-\d{2}-\d{2}$/.test(q.datum) ? q.datum : undefined;
+  const vorUhrzeit =
+    typeof q.uhrzeit === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(q.uhrzeit)
+      ? q.uhrzeit
+      : undefined;
   const tage = Array.from({ length: 7 }, (_, i) => tageAddieren(woche, i));
   const link = (w: string, extra = "") => `/kalender?woche=${w}${extra}`;
+  // Vorschläge für „Neuer Termin“; ändert sich einer, wird das Formular neu aufgebaut.
+  const vorschlag = {
+    patient: vorPatient,
+    datum: vorDatum ?? (tage.includes(heute) ? heute : woche),
+    uhrzeit: vorUhrzeit ?? "09:00",
+  };
+  const patientParam = vorPatient ? `&patient=${encodeURIComponent(vorPatient)}` : "";
   const feiertag = (tag: string) => frei.feiertage.find((f) => f.datum === tag);
   const abwesend = (tag: string) => frei.abwesenheiten.filter((a) => a.von <= tag && a.bis >= tag);
   /** Hintergrund der Tagesspalte: Feiertag vor eigener Abwesenheit. */
@@ -128,6 +146,24 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                     style={{ top: (stunde - START) * PX_PRO_STUNDE }}
                   />
                 ))}
+                {/* Freie Halbstunden: Klick schlägt dort einen neuen Termin vor. Termine liegen darüber. */}
+                {HALBSTUNDEN.map((zeit, i) => {
+                  const aktiv = vorDatum === tag && vorUhrzeit === zeit;
+                  return (
+                    <Link
+                      key={zeit}
+                      href={link(
+                        woche,
+                        `&datum=${tag}&uhrzeit=${zeit}${patientParam}#neuer-termin`,
+                      )}
+                      prefetch={false}
+                      tabIndex={-1}
+                      aria-label={`Neuer Termin am ${formatDatum(tag)} um ${zeit}`}
+                      className={`absolute inset-x-0 hover:bg-akzent/10 ${aktiv ? "bg-akzent/15 ring-1 ring-akzent ring-inset" : ""}`}
+                      style={{ top: (i * PX_PRO_STUNDE) / 2, height: PX_PRO_STUNDE / 2 }}
+                    />
+                  );
+                })}
                 {termine
                   .filter((t) => datumIso(t.beginn) === tag)
                   .map((t) => {
@@ -262,7 +298,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
             </section>
           )}
 
-          <section className="karte flex flex-col gap-3">
+          <section id="neuer-termin" className="karte flex flex-col gap-3 scroll-mt-6">
             <h2 className="font-semibold">Neuer Termin</h2>
             {patienten.length === 0 ? (
               <p className="text-muted text-sm">
@@ -274,6 +310,8 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
               </p>
             ) : (
               <Formular
+                // Neuer Schlüssel bei anderem Vorschlag, sonst behalten die Felder den alten Wert.
+                key={Object.values(vorschlag).join("|")}
                 aktion={terminAnlegen}
                 knopf="Termin anlegen"
                 className="flex flex-col gap-3"
@@ -282,7 +320,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                   name="patientId"
                   label="Patient"
                   pflicht
-                  wert={vorPatient}
+                  wert={vorschlag.patient}
                   optionen={patienten.map((p) => ({
                     wert: p.id,
                     text: `${p.nachname}, ${p.vorname}`,
@@ -301,14 +339,15 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                     }))}
                 />
                 <div className="grid grid-cols-2 gap-3">
+                  <Feld name="datum" label="Datum" typ="date" pflicht wert={vorschlag.datum} />
                   <Feld
-                    name="datum"
-                    label="Datum"
-                    typ="date"
+                    name="uhrzeit"
+                    label="Uhrzeit"
+                    typ="time"
                     pflicht
-                    wert={tage.includes(heute) ? heute : woche}
+                    wert={vorschlag.uhrzeit}
+                    step={300}
                   />
-                  <Feld name="uhrzeit" label="Uhrzeit" typ="time" pflicht wert="09:00" step={300} />
                 </div>
                 <Auswahl
                   name="anzahl"
