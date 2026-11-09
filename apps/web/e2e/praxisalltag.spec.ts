@@ -87,6 +87,28 @@ test("Aufgaben anlegen und erledigen", async ({ page }) => {
   await expect(page.getByRole("button", { name: "↺" })).toBeVisible();
 });
 
+test("Feiertage und Urlaub im Kalender", async ({ page }) => {
+  await neuePraxis(page);
+  await page.goto("/kalender?woche=2026-12-21");
+  await expect(page.getByText("Christtag")).toBeVisible();
+  await expect(page.getByText("Stefanitag")).toBeVisible();
+
+  const karte = page.locator("section", { hasText: "Urlaub und Abwesenheit" });
+  await karte.getByLabel("Von").fill("2026-12-28");
+  await karte.getByLabel("Bis").fill("2027-01-02");
+  await karte.getByLabel("Notiz (optional)").fill("Skiurlaub");
+  await karte.getByRole("button", { name: "Eintragen" }).click();
+  await expect(karte.getByText("28.12.2026 – 02.01.2027")).toBeVisible();
+
+  await page.goto("/kalender?woche=2026-12-28");
+  await expect(page.getByText("Neujahr")).toBeVisible();
+  await expect(page.getByText("Urlaub", { exact: true }).first()).toBeVisible();
+
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Abwesenheit löschen" }).click();
+  await expect(page.getByText("Skiurlaub")).toHaveCount(0);
+});
+
 test("Praxisdaten und Honorare in den Einstellungen ändern", async ({ page }) => {
   await neuePraxis(page);
   await page.goto("/einstellungen");

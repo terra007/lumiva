@@ -184,6 +184,56 @@ describe("LUMIVA-API", () => {
     });
   });
 
+  it("zeigt Feiertage und Abwesenheiten, Details nur dem Therapeuten selbst", async () => {
+    const maria = { id: "maria", name: "Mag. Maria Muster", email: "maria@test.at" };
+    const api = createCaller(await kontextFuer(maria));
+    const { id } = await api.abwesenheiten.anlegen({
+      von: "2026-12-21",
+      bis: "2027-01-06",
+      art: "krankenstand",
+      notiz: "Reha",
+    });
+    await expect(
+      api.abwesenheiten.anlegen({ von: "2026-12-21", bis: "2026-12-20", art: "urlaub" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    // Art und Notiz liegen nur verschlüsselt in der Datenbank.
+    const [roh] = await db.select().from(schema.abwesenheiten);
+    expect(roh?.artEnc).not.toContain("krankenstand");
+    expect(roh?.notizEnc).not.toContain("Reha");
+
+    const woche = await api.abwesenheiten.zeitraum({ von: "2026-12-21", bis: "2026-12-27" });
+    expect(woche.feiertage.map((f) => f.name)).toEqual(["Christtag", "Stefanitag"]);
+    expect(woche.abwesenheiten).toMatchObject([
+      { id, eigene: true, art: "krankenstand", notiz: "Reha", name: "Mag. Maria Muster" },
+    ]);
+
+    const assistenz = { id: "assistenz", name: "Alex Assistenz", email: "assistenz@test.at" };
+    const apiAssistenz = createCaller(await kontextFuer(assistenz));
+    const fuerAssistenz = await apiAssistenz.abwesenheiten.zeitraum({
+      von: "2026-12-21",
+      bis: "2026-12-27",
+    });
+    expect(fuerAssistenz.abwesenheiten).toMatchObject([
+      { eigene: false, art: "sonstiges", notiz: null },
+    ]);
+    await expect(apiAssistenz.abwesenheiten.loeschen({ id })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+
+    const fremd = { id: "fremd", name: "Dr. Fremd", email: "fremd@test.at" };
+    const apiFremd = createCaller(await kontextFuer(fremd));
+    expect(
+      (await apiFremd.abwesenheiten.zeitraum({ von: "2026-12-21", bis: "2026-12-27" }))
+        .abwesenheiten,
+    ).toEqual([]);
+
+    await api.abwesenheiten.loeschen({ id });
+    expect(
+      (await api.abwesenheiten.zeitraum({ von: "2026-12-21", bis: "2026-12-27" })).abwesenheiten,
+    ).toEqual([]);
+  });
+
   it("legt Demo-Daten an", async () => {
     const demo = await benutzerAnlegen("demo", "Demo Therapeutin");
     let api = createCaller(await kontextFuer(demo));

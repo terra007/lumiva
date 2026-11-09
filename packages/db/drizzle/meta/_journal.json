@@ -36,6 +36,13 @@
       "when": 1794124534627,
       "tag": "0004_zahlung_je_sitzung",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794250594434,
+      "tag": "0005_abwesenheiten",
+      "breakpoints": true
     }
   ]
 }
