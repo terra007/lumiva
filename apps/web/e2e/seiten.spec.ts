@@ -7,6 +7,7 @@ const SEITEN = [
   "/patienten/neu",
   "/honorarnoten",
   "/aufgaben",
+  "/kennzahlen",
   "/einstellungen",
 ];
 
