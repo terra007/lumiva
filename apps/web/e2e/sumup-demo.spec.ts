@@ -25,7 +25,7 @@ test("SumUp-Demo: Zahlung am Terminal und über den Zahllink", async ({ page, co
   await page.goto("/honorarnoten");
   let zeile = page.getByRole("row", { name: new RegExp(ersteNote) });
   await zeile.getByRole("button", { name: "Terminal" }).click();
-  await expect(zeile.getByText("Am Terminal bezahlen …")).toBeVisible();
+  await expect(zeile.getByText("Karte vorhalten oder einstecken")).toBeVisible();
   await expect(zeile.locator(".abzeichen", { hasText: "Bezahlt" })).toBeVisible({
     timeout: 20_000,
   });
@@ -80,7 +80,7 @@ test("Kassieren gleich nach der Sitzung, Honorarnote später gesammelt", async (
   await page.goto(`/patienten/${patientId}`);
   const termine = page.locator("section", { has: page.getByRole("heading", { name: "Termine" }) });
   await termine.getByRole("button", { name: /^Kassieren € 90,00/ }).click();
-  await expect(termine.getByText("Am Terminal bezahlen …")).toBeVisible();
+  await expect(termine.getByText("Karte vorhalten oder einstecken")).toBeVisible();
   await expect(termine.locator(".abzeichen", { hasText: "Bezahlt" })).toBeVisible({
     timeout: 20_000,
   });
@@ -113,7 +113,12 @@ test("Terminal je Sitzung in der Liste zum Ausstellen", async ({ page }) => {
     has: page.getByRole("heading", { name: "Honorarnote ausstellen" }),
   });
   await ausstellen.getByRole("button", { name: "Terminal" }).click();
-  await expect(ausstellen.getByText("Am Terminal bezahlen …")).toBeVisible();
+  const terminal = page.getByRole("dialog", { name: "Zahlung am Terminal" });
+  await expect(terminal.getByText("Demo-Terminal")).toBeVisible();
+  await expect(terminal.getByText("€ 90,00")).toBeVisible();
+  await expect(terminal.getByText("Karte vorhalten oder einstecken")).toBeVisible();
+  await expect(terminal.getByText("Zahlung erfolgreich")).toBeVisible({ timeout: 20_000 });
+  await expect(terminal).toHaveCount(0, { timeout: 10_000 });
   await expect(ausstellen.locator(".abzeichen", { hasText: "Bezahlt" })).toBeVisible({
     timeout: 20_000,
   });

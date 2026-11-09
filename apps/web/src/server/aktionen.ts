@@ -286,7 +286,14 @@ export async function terminalKoppeln(_: Ergebnis, d: FormData): Promise<Ergebni
   );
 }
 
-type ZahlungsStand = { zahlungId?: string; status?: string; fehler?: string };
+type ZahlungsStand = {
+  zahlungId?: string;
+  status?: string;
+  fehler?: string;
+  /** Beim Start: Betrag am Terminal und ob es das Demo-Terminal ist. */
+  betragCent?: number;
+  demo?: boolean;
+};
 
 /** Für die Terminal-Zahlung: liefert Daten statt eines Formular-Ergebnisses. */
 async function abfragen(fn: () => Promise<ZahlungsStand>): Promise<ZahlungsStand> {
@@ -301,18 +308,13 @@ async function abfragen(fn: () => Promise<ZahlungsStand>): Promise<ZahlungsStand
 export type ZahlungsZiel = { honorarnoteId: string } | { terminId: string; abschliessen?: boolean };
 
 export async function terminalZahlungStarten(ziel: ZahlungsZiel): Promise<ZahlungsStand> {
-  return abfragen(async () => {
-    const stand = await (await api()).zahlungen.terminalStarten(ziel);
-    // Eine eben als erledigt vermerkte Sitzung soll sofort so angezeigt werden.
-    if ("terminId" in ziel) revalidatePath("/", "layout");
-    return stand;
-  });
+  // Kein revalidatePath hier: Das würde den Knopf samt Terminal-Fenster neu aufbauen.
+  // Die Oberfläche lädt nach Ende der Zahlung selbst neu (router.refresh).
+  return abfragen(async () => (await api()).zahlungen.terminalStarten(ziel));
 }
 
 export async function zahlungStatus(zahlungId: string): Promise<ZahlungsStand> {
-  const stand = await abfragen(async () => (await api()).zahlungen.status({ zahlungId }));
-  if (stand.status === "bezahlt") revalidatePath("/", "layout");
-  return stand;
+  return abfragen(async () => (await api()).zahlungen.status({ zahlungId }));
 }
 
 export async function terminalZahlungAbbrechen(zahlungId: string): Promise<ZahlungsStand> {

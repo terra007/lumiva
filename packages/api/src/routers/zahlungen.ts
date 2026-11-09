@@ -312,8 +312,9 @@ export const zahlungenRouter = router({
           });
       }
       // Doppelklick: Läuft schon eine Terminal-Zahlung dafür, diese zurückgeben.
+      const demo = konto.haendlerCode === DEMO_HAENDLERCODE;
       const [laeuft] = await ctx.db
-        .select({ id: schema.zahlungen.id })
+        .select({ id: schema.zahlungen.id, betragCent: schema.zahlungen.betragCent })
         .from(schema.zahlungen)
         .where(
           and(
@@ -326,7 +327,7 @@ export const zahlungenRouter = router({
             gt(schema.zahlungen.erstelltAm, new Date(Date.now() - 2 * 60_000)),
           ),
         );
-      if (laeuft) return { zahlungId: laeuft.id };
+      if (laeuft) return { zahlungId: laeuft.id, betragCent: laeuft.betragCent, demo };
 
       const [zahlung] = await ctx.db
         .insert(schema.zahlungen)
@@ -358,7 +359,7 @@ export const zahlungenRouter = router({
         ziel.terminId ?? ziel.honorarnoteId,
         { zahlung: zahlung.id, art: "terminal", betragCent },
       );
-      return { zahlungId: zahlung.id };
+      return { zahlungId: zahlung.id, betragCent, demo };
     }),
 
   /** Stand einer Zahlung; fragt bei SumUp nach, solange sie offen ist (falls kein Webhook ankommt). */
