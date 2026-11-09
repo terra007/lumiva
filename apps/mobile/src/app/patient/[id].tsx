@@ -32,7 +32,7 @@ export default function Patient() {
   if (p.isPending) return <Laden />;
   if (p.error)
     return (
-      <Seite titel="Patient:in">
+      <Seite titel="Patient">
         <Fehler text={fehlerText(p.error)} />
       </Seite>
     );

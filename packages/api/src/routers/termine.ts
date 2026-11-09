@@ -10,7 +10,7 @@ import { bezahlteSitzungen, termineAufNote } from "../zahlungen";
 
 const MINUTE = 60_000;
 
-/** Termine im Zeitraum, mit Namen der Patient:innen. Sichtbarkeit wie bei den Patient:innen. */
+/** Termine im Zeitraum, mit Namen der Patienten. Sichtbarkeit wie bei den Patienten. */
 export async function termineImZeitraum(
   ctx: Parameters<typeof patientLaden>[0],
   von: Date,

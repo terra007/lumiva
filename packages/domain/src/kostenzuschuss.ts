@@ -14,7 +14,7 @@ export const TRAEGER_NAME: Record<string, string> = {
   bvaeb: "BVAEB",
   svs: "SVS",
   kfa: "KFA",
-  privat: "Selbstzahler:in",
+  privat: "Selbstzahler",
   sonstige: "Sonstige",
 } satisfies Record<Versicherungstraeger, string>;
 
@@ -39,7 +39,7 @@ export function kostenzuschussHinweise(stand: KostenzuschussStand): Kostenzuschu
   if (!Number.isInteger(n) || n < 1) {
     throw new Error(`Ungültige Sitzungsnummer: ${n}`);
   }
-  // Selbstzahler:innen beantragen keinen Kostenzuschuss.
+  // Selbstzahler beantragen keinen Kostenzuschuss.
   if (stand.versicherungstraeger === "privat") return [];
   // Bisher sind nur die ÖGK-Regeln geprüft. BVAEB, SVS und KFA folgen, sobald belegt.
   if (stand.versicherungstraeger !== "oegk") return [{ art: "regeln-selbst-pruefen" }];

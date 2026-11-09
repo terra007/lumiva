@@ -28,7 +28,7 @@ export default async function Einwilligung({ params }: PageProps<"/druck/einwill
         Einwilligung in die Tonaufnahme von Psychotherapie-Sitzungen
       </h1>
       <p>
-        Patient:in:{" "}
+        Patient:{" "}
         <strong>
           {p.vorname} {p.nachname}
         </strong>
@@ -47,9 +47,9 @@ export default async function Einwilligung({ params }: PageProps<"/druck/einwill
         </li>
         <li>
           Die Tonaufnahme wird nicht gespeichert und sofort nach der Verarbeitung gelöscht.
-          Gespeichert werden der von der Therapeut:in geprüfte Dokumentationseintrag und, wenn sie
-          es behält, das Transkript (der aufgenommene Text) als Teil der Dokumentation,
-          verschlüsselt und unter Verschwiegenheit (§ 37 Psychotherapiegesetz 2024).
+          Gespeichert werden der vom Therapeuten geprüfte Dokumentationseintrag und, wenn er es
+          behält, das Transkript (der aufgenommene Text) als Teil der Dokumentation, verschlüsselt
+          und unter Verschwiegenheit (§ 37 Psychotherapiegesetz 2024).
         </li>
         <li>
           Die Einwilligung ist freiwillig. Wenn ich nicht einwillige, hat das keinen Einfluss auf
@@ -66,7 +66,7 @@ export default async function Einwilligung({ params }: PageProps<"/druck/einwill
       </ul>
       <div className="mt-10 grid grid-cols-2 gap-10 text-sm">
         <div className="border-black border-t pt-1">Ort, Datum</div>
-        <div className="border-black border-t pt-1">Unterschrift Patient:in</div>
+        <div className="border-black border-t pt-1">Unterschrift Patient</div>
       </div>
       <p className="mt-6 text-gray-500 text-xs print:hidden">
         Vorlage aus LUMIVA, keine Rechtsberatung. Bitte vor dem ersten Einsatz rechtlich prüfen

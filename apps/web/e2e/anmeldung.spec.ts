@@ -10,7 +10,7 @@ test("Konto erstellen, Praxis anlegen, abmelden und wieder anmelden", async ({ p
   const email = await registrieren(page, "Mag. Lena Test");
   await expect(page.getByRole("heading", { name: "Willkommen, Mag. Lena Test" })).toBeVisible();
   await praxisAnlegen(page, "Praxis Test");
-  await expect(page.getByText("Praxis Test · Inhaber:in")).toBeVisible();
+  await expect(page.getByText("Praxis Test · Inhaber")).toBeVisible();
 
   await page.getByRole("button", { name: "Abmelden" }).click();
   await expect(page).toHaveURL(/\/anmelden$/);

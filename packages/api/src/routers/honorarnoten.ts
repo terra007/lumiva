@@ -206,7 +206,7 @@ export const honorarnotenRouter = router({
       }
 
       const { nummer, bezahlt } = await ctx.db.transaction(async (tx) => {
-        // Patient:in sperren und erneut prüfen, damit gleichzeitige Anfragen (Doppelklick)
+        // Patienten sperren und erneut prüfen, damit gleichzeitige Anfragen (Doppelklick)
         // denselben Termin nicht zweimal abrechnen.
         await tx
           .select({ id: schema.patienten.id })

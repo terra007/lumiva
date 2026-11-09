@@ -40,7 +40,7 @@ const sitzungSchema = z.object({
 });
 
 /**
- * Pflichtangaben, damit Patient:innen mit der Honorarnote den Kostenzuschuss
+ * Pflichtangaben, damit Patienten mit der Honorarnote den Kostenzuschuss
  * bei ÖGK, BVAEB oder SVS beantragen können (siehe oegk.at/psyche).
  */
 export const kostenzuschussHonorarnoteSchema = z.object({

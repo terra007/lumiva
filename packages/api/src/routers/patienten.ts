@@ -78,7 +78,7 @@ function verschluesselteFelder(
   };
 }
 
-/** Anzahl der stattgefundenen Sitzungen je Patient:in (für die Kostenzuschuss-Regeln). */
+/** Anzahl der stattgefundenen Sitzungen je Patient (für die Kostenzuschuss-Regeln). */
 export async function sitzungenGezaehlt(
   db: Parameters<typeof patientLaden>[0]["db"],
   praxisId: string,

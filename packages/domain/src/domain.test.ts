@@ -77,7 +77,7 @@ describe("kostenzuschussHinweise", () => {
       }),
     ).toEqual([{ art: "bewilligung-fehlt" }]);
   });
-  it("gibt Selbstzahler:innen keine Hinweise", () => {
+  it("gibt Selbstzahlern keine Hinweise", () => {
     expect(
       kostenzuschussHinweise({ ...basis, versicherungstraeger: "privat", naechsteSitzung: 12 }),
     ).toEqual([]);
@@ -172,7 +172,7 @@ describe("fehlendeKostenzuschussAngaben", () => {
       }),
     ).toEqual(["gültige Sozialversicherungsnummer", "Diagnose (ICD-10)"]);
   });
-  it("verlangt bei Selbstzahler:innen nichts", () => {
+  it("verlangt bei Selbstzahlern nichts", () => {
     expect(
       fehlendeKostenzuschussAngaben({
         ...inhalt,

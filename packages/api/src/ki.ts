@@ -158,7 +158,7 @@ Antwort:
 - Intervention: Atemübung, hat gut getan
 - Vereinbarung: Atemübung jeden Abend`;
 
-/** Doku-Entwurf aus dem Transkript. Die Therapeut:in prüft und speichert selbst. */
+/** Doku-Entwurf aus dem Transkript. Der Therapeut prüft und speichert selbst. */
 export async function dokuEntwurf(
   k: KiKonfiguration,
   transkript: string,

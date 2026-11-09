@@ -44,7 +44,7 @@ export default async function Einstellungen() {
       </section>
       <section className="karte flex flex-col gap-4">
         <h2 className="font-semibold">Sitzungsarten und Honorare</h2>
-        {!inhaber && <p className="text-muted text-sm">Nur die Inhaber:in ändert Honorare.</p>}
+        {!inhaber && <p className="text-muted text-sm">Nur der Inhaber ändert Honorare.</p>}
         <fieldset disabled={!inhaber} className="flex flex-col gap-4">
           <ul className="flex flex-col divide-y divide-line">
             {arten.map((a) => (
@@ -133,9 +133,9 @@ export default async function Einstellungen() {
         <section className="karte flex flex-col gap-4">
           <h2 className="font-semibold">Kartenzahlung mit SumUp</h2>
           <p className="text-muted text-sm">
-            Patient:innen zahlen am SumUp-Terminal oder über den QR-Code auf der Honorarnote. An
-            SumUp gehen nur Betrag und Nummer der Honorarnote. Händlercode und API-Schlüssel findest
-            du im SumUp-Dashboard unter Einstellungen → Entwickler. Zum Testen eignet sich ein
+            Patienten zahlen am SumUp-Terminal oder über den QR-Code auf der Honorarnote. An SumUp
+            gehen nur Betrag und Nummer der Honorarnote. Händlercode und API-Schlüssel findest du im
+            SumUp-Dashboard unter Einstellungen → Entwickler. Zum Testen eignet sich ein
             Sandbox-Konto.
           </p>
           {sumup.demo && (

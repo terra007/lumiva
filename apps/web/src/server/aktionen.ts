@@ -105,7 +105,7 @@ export async function demoLaden(_: Ergebnis): Promise<Ergebnis> {
   return ausfuehren(async () => (await api()).demo.laden());
 }
 
-// Patient:innen
+// Patienten
 
 function stammdaten(d: FormData) {
   return {

@@ -18,12 +18,12 @@ export default async function Patienten({ searchParams }: PageProps<"/patienten"
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-semibold text-3xl tracking-tight">Patient:innen</h1>
+          <h1 className="font-semibold text-3xl tracking-tight">Patienten</h1>
           <p className="text-muted text-sm">Namen und Akten sind verschlüsselt gespeichert.</p>
         </div>
         {ich.praxis?.rolle !== "assistenz" && (
           <Link href="/patienten/neu" className="knopf">
-            Neue:r Patient:in
+            Neuer Patient
           </Link>
         )}
       </header>
@@ -47,7 +47,7 @@ export default async function Patienten({ searchParams }: PageProps<"/patienten"
       </form>
 
       {patienten.length === 0 ? (
-        <p className="karte text-muted text-sm">Keine Patient:innen gefunden.</p>
+        <p className="karte text-muted text-sm">Keine Patienten gefunden.</p>
       ) : (
         <div className="karte overflow-x-auto p-0">
           <table className="w-full text-sm">

@@ -30,7 +30,7 @@ export default function Wurzel() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="patient/[id]"
-                options={{ title: "Patient:in", headerBackTitle: "Zurück" }}
+                options={{ title: "Patient", headerBackTitle: "Zurück" }}
               />
             </Stack>
           )}

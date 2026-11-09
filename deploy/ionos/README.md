@@ -63,7 +63,7 @@ in der Akte erscheinen „Diktat aufnehmen“ und „Sitzung aufnehmen“.
 - Die Aufnahme geht vom Browser direkt an diesen Server, wird im Arbeitsspeicher in Text
   umgewandelt und zusammengefasst und **nicht gespeichert**. Gespeichert wird nur der Eintrag,
   den du geprüft und mit „Eintrag speichern“ bestätigt hast.
-- **Diktat nach der Sitzung** (du sprichst selbst): keine Einwilligung der Patient:in nötig.
+- **Diktat nach der Sitzung** (du sprichst selbst): keine Einwilligung des Patienten nötig.
 - **Aufnahme der ganzen Sitzung:** nur mit schriftlicher Einwilligung (DSGVO Art. 9 Abs. 2 lit. a).
   LUMIVA druckt die Vorlage aus der Akte („Einwilligung zum Unterschreiben drucken“). Erst mit
   eingetragenem Datum ist die Aufnahme freigeschaltet. Die Vorlage vor dem ersten Einsatz

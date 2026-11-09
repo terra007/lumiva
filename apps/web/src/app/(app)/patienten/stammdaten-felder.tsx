@@ -24,7 +24,7 @@ export function StammdatenFelder({ p }: { p?: Patient }) {
         wert={p?.svNummer}
         inputMode="numeric"
         placeholder="1234 010180"
-        hinweis="10 Ziffern. Für den Kostenzuschuss nötig, bei Selbstzahler:innen optional."
+        hinweis="10 Ziffern. Für den Kostenzuschuss nötig, bei Selbstzahlern optional."
       />
       <Feld
         name="anschrift"
