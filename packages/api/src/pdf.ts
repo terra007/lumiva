@@ -109,7 +109,7 @@ export async function honorarnotePdf(
     text(t, links, { farbe: grau });
   }
 
-  // Empfänger:in
+  // Empfänger
   y -= 40;
   text(`${n.patient.vorname} ${n.patient.nachname}`, links, { bold: true });
   if (n.patient.anschrift) {

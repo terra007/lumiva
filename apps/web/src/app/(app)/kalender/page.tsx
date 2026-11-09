@@ -268,7 +268,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
               <p className="text-muted text-sm">
                 Lege zuerst eine{" "}
                 <Link href="/patienten/neu" className="verweis">
-                  Patient:in
+                  Patient
                 </Link>{" "}
                 an.
               </p>
@@ -280,7 +280,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
               >
                 <Auswahl
                   name="patientId"
-                  label="Patient:in"
+                  label="Patient"
                   pflicht
                   wert={vorPatient}
                   optionen={patienten.map((p) => ({

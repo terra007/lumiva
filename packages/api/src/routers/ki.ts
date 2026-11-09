@@ -12,15 +12,15 @@ export const kiRouter = router({
 
   /**
    * Aufnahme zu Doku-Entwurf. Hier wird nichts gespeichert: die Aufnahme nie, das Transkript
-   * nur, wenn die Therapeut:in es mit dem geprüften Eintrag speichert (doku.anlegen).
-   * Den Entwurf prüft und speichert die Therapeut:in selbst als Doku-Eintrag.
+   * nur, wenn der Therapeut es mit dem geprüften Eintrag speichert (doku.anlegen).
+   * Den Entwurf prüft und speichert der Therapeut selbst als Doku-Eintrag.
    */
   entwurf: therapeutisch
     .input(
       z.object({
         patientId: z.uuid(),
         art: z.enum(schema.eintragArt.enumValues),
-        /** diktat: Therapeut:in spricht nach der Sitzung; sitzung: Aufnahme der ganzen Sitzung. */
+        /** diktat: der Therapeut spricht nach der Sitzung; sitzung: Aufnahme der ganzen Sitzung. */
         modus: z.enum(["diktat", "sitzung"]),
         audio: z.instanceof(Uint8Array).refine((a) => a.byteLength > 0, "Aufnahme ist leer"),
         mimeType: z.string().regex(/^audio\/[\w.+-]+(;.*)?$/),
@@ -42,7 +42,7 @@ export const kiRouter = router({
       if (input.modus === "sitzung" && !patient.kiAufnahmeEinwilligungAm) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: "Für die Aufnahme der Sitzung fehlt die Einwilligung der Patient:in.",
+          message: "Für die Aufnahme der Sitzung fehlt die Einwilligung des Patienten.",
         });
       }
       // Vor der Verarbeitung protokollieren: Auch ein fehlgeschlagener Versuch ist ein Aktenzugriff.

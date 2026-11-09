@@ -6,8 +6,8 @@ import { authClient } from "@/lib/auth";
 import { useTRPC } from "@/lib/trpc";
 
 const ROLLEN: Record<string, string> = {
-  inhaber: "Inhaber:in",
-  therapeut: "Therapeut:in",
+  inhaber: "Inhaber",
+  therapeut: "Therapeut",
   assistenz: "Assistenz",
 };
 

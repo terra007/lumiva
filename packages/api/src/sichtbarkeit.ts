@@ -6,7 +6,7 @@ import type { Kontext, PraxisZugang } from "./trpc";
 type Ctx = Pick<Kontext, "db"> & { praxis: PraxisZugang; benutzer: { id: string } };
 
 /**
- * Welche Patient:innen jemand sehen darf: Therapeut:innen (auch Inhaber:innen) nur die eigenen,
+ * Welche Patienten jemand sehen darf: Therapeuten (auch Inhaber) nur die eigenen,
  * die Assistenz alle der Praxis, aber ohne Akteninhalte.
  */
 export function patientenFilter(ctx: Ctx): SQL {
@@ -20,6 +20,6 @@ export async function patientLaden(ctx: Ctx, patientId: string) {
     .select()
     .from(schema.patienten)
     .where(and(patientenFilter(ctx), eq(schema.patienten.id, patientId)));
-  if (!p) throw new TRPCError({ code: "NOT_FOUND", message: "Patient:in nicht gefunden." });
+  if (!p) throw new TRPCError({ code: "NOT_FOUND", message: "Patient nicht gefunden." });
   return p;
 }

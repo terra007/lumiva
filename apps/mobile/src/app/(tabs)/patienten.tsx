@@ -17,7 +17,7 @@ export default function Patienten() {
     `${p.vorname} ${p.nachname}`.toLowerCase().includes(suche.trim().toLowerCase()),
   );
   return (
-    <Seite titel="Patient:innen" neuLaden={() => liste.refetch()} laedt={liste.isRefetching}>
+    <Seite titel="Patienten" neuLaden={() => liste.refetch()} laedt={liste.isRefetching}>
       <TextInput
         placeholder="Name suchen …"
         placeholderTextColor={theme.textSecondary}

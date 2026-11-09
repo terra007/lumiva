@@ -79,7 +79,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <Link href="/patienten" className="text-muted text-sm hover:underline">
-            ← Patient:innen
+            ← Patienten
           </Link>
           <h1 className="font-semibold text-3xl tracking-tight">
             {p.vorname} {p.nachname}

@@ -20,7 +20,7 @@ export function decOpt(
   return wert === null ? null : dec(p, feld, id, wert);
 }
 
-/** Vor- und Nachname einer Patient:in aus den verschlüsselten Spalten. */
+/** Vor- und Nachname eines Patienten aus den verschlüsselten Spalten. */
 export function patientName(
   p: PraxisZugang,
   patientId: string,

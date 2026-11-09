@@ -24,7 +24,7 @@ export default async function Honorarnoten() {
         <h1 className="font-semibold text-3xl tracking-tight">Honorarnoten</h1>
         <p className="text-muted text-sm">
           {offen.length} offen, {euro(offen.reduce((s, n) => s + n.summeCent, 0))}. Neue
-          Honorarnoten stellst du in der Akte der Patient:in aus.
+          Honorarnoten stellst du in der Akte des Patienten aus.
         </p>
       </header>
       {noten.length === 0 ? (
@@ -35,7 +35,7 @@ export default async function Honorarnoten() {
             <thead className="border-line border-b text-left text-muted">
               <tr>
                 <th className="px-5 py-3 font-medium">Nummer</th>
-                <th className="px-5 py-3 font-medium">Patient:in</th>
+                <th className="px-5 py-3 font-medium">Patient</th>
                 <th className="px-5 py-3 font-medium">Datum</th>
                 <th className="px-5 py-3 text-right font-medium">Betrag</th>
                 <th className="px-5 py-3 font-medium">Status</th>

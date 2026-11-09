@@ -139,9 +139,7 @@ export function KiAufnahme({
               className="knopf-zweit"
               onClick={() => starten("sitzung")}
               disabled={!sitzungErlaubt}
-              title={
-                sitzungErlaubt ? undefined : "Zuerst die Einwilligung der Patient:in eintragen"
-              }
+              title={sitzungErlaubt ? undefined : "Zuerst die Einwilligung des Patienten eintragen"}
             >
               Sitzung aufnehmen
             </button>

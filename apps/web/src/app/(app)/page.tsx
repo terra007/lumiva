@@ -25,12 +25,12 @@ export default async function Uebersicht() {
         <section className="karte flex flex-col items-start gap-3 border-akzent/50 bg-akzent/5">
           <h2 className="font-semibold">Noch leer hier</h2>
           <p className="text-muted text-sm">
-            Lege deine erste Patientin oder deinen ersten Patienten an, oder lade Beispieldaten, um
-            LUMIVA auszuprobieren. Die Beispieldaten sind frei erfunden.
+            Lege deinen ersten Patienten an oder lade Beispieldaten, um LUMIVA auszuprobieren. Die
+            Beispieldaten sind frei erfunden.
           </p>
           <div className="flex flex-wrap gap-2">
             <Link href="/patienten/neu" className="knopf">
-              Patient:in anlegen
+              Patient anlegen
             </Link>
             <AktionsKnopf aktion={demoLaden} felder={{}} text="Beispieldaten laden" />
           </div>

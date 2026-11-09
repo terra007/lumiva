@@ -1,6 +1,6 @@
 # LUMIVA
 
-Praxissoftware für Psychotherapeut:innen in Österreich. Web-App und native Apps für iOS und Android.
+Praxissoftware für Psychotherapeuten in Österreich. Web-App und native Apps für iOS und Android.
 Anforderungen: siehe das Anforderungsdokument „LUMIVA – Anforderungen v1“ im Projekt.
 
 ## Aufbau
@@ -37,12 +37,15 @@ Neue Expo-Pakete immer mit `npx expo install <paket>` in `apps/mobile` hinzufüg
 - **Gesundheitsdaten nie im Klartext speichern.** Spalten mit Endung `Enc` werden mit
   `verschluesseln(wert, praxisSchluessel, "<tabelle>.<spalte>:<id>")` aus `@lumiva/db/crypto` geschrieben.
 - **Keine Gesundheitsdaten in Logs, Fehlermeldungen, Push-Nachrichten oder Analytics.**
-- Jede Abfrage filtert nach `praxisId`. Therapeut:innen sehen nur eigene Patient:innen; Assistenz keine Akteninhalte.
+- Jede Abfrage filtert nach `praxisId`. Therapeuten sehen nur eigene Patienten; Assistenz keine Akteninhalte.
 - Jeder Lese- oder Schreibzugriff auf Akten schreibt einen Eintrag in `protokoll`.
 - Honorarnoten sind nach Ausstellung unveränderlich; Korrektur nur per Storno (`storniertAm`) und neuer Note.
   Nummern nur über `naechsteHonorarnoteNummer(tx, …)` innerhalb der Transaktion, die die Note speichert.
 - Geld immer als ganze Cent (`integer`), nie als Kommazahl.
 - Fachbegriffe auf Deutsch (Honorarnote, Kostenzuschuss, Sitzung), wie in `packages/domain`.
+- **Kein Gendering.** Personen- und Rollenbezeichnungen nur in der männlichen Form, in Oberfläche, Texten,
+  Kommentaren und Doku (Patient, Therapeut, Inhaber, Selbstzahler). Keine Formen wie `Patient:in`, `Patient*innen`,
+  `PatientInnen` oder `Neue:r`.
 - Fachregeln mit Quelle kommentieren (Gesetz und Paragraf oder URL der Kasse).
 
 ## Arbeitsweise

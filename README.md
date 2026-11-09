@@ -2,7 +2,7 @@
 
 **Klarheit für deine Praxis.**
 
-LUMIVA ist eine Praxissoftware für Psychotherapeut:innen in Österreich: Termine, Honorarnoten, Dokumentation und offene Aufgaben an einem Ort, im Web und als native App für iOS und Android.
+LUMIVA ist eine Praxissoftware für Psychotherapeuten in Österreich: Termine, Honorarnoten, Dokumentation und offene Aufgaben an einem Ort, im Web und als native App für iOS und Android.
 
 Der Name kommt von lateinisch _lumen_, Licht: Nichts soll organisatorisch im Dunkeln liegen.
 
@@ -24,4 +24,4 @@ pnpm --filter @lumiva/web dev      # http://localhost:3000
 pnpm --filter @lumiva/mobile start # Expo Go oder Simulator
 ```
 
-Details für Entwickler:innen stehen in [CLAUDE.md](CLAUDE.md).
+Details für Entwickler stehen in [CLAUDE.md](CLAUDE.md).

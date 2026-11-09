@@ -175,7 +175,7 @@ export const dokuEintraege = pgTable(
     inhaltEnc: text().notNull(),
     /** Mehrere Codes als „F32.1, F41.1“. */
     diagnoseIcd10Enc: text(),
-    /** Wörtliches Transkript der KI-Aufnahme, wenn die Therapeut:in es mitspeichert. */
+    /** Wörtliches Transkript der KI-Aufnahme, wenn der Therapeut es mitspeichert. */
     transkriptEnc: text(),
     erstelltVon: text().notNull(),
     erstelltAm: erstelltAm(),

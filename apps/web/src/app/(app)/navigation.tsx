@@ -6,15 +6,15 @@ import { authClient } from "@/lib/auth-client";
 const PUNKTE = [
   { href: "/", text: "Übersicht" },
   { href: "/kalender", text: "Kalender" },
-  { href: "/patienten", text: "Patient:innen" },
+  { href: "/patienten", text: "Patienten" },
   { href: "/honorarnoten", text: "Honorarnoten" },
   { href: "/aufgaben", text: "Aufgaben" },
   { href: "/einstellungen", text: "Einstellungen" },
 ];
 
 const ROLLEN = {
-  inhaber: "Inhaber:in",
-  therapeut: "Therapeut:in",
+  inhaber: "Inhaber",
+  therapeut: "Therapeut",
   assistenz: "Assistenz",
 } as const;
 

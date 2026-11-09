@@ -65,7 +65,7 @@ describe("Datenbankschema", () => {
     await expect(db.insert(schema.honorarnoten).values(note)).rejects.toThrow();
   });
 
-  it("verhindert Verweise auf Patient:innen einer anderen Praxis", async () => {
+  it("verhindert Verweise auf Patienten einer anderen Praxis", async () => {
     const [andere] = await db
       .insert(schema.praxen)
       .values({ name: "Andere Praxis", anschrift: "Graz", datenschluesselEnc: "x" })

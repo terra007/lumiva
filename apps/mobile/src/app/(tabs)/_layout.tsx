@@ -23,7 +23,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="patienten"
         options={{
-          title: "Patient:innen",
+          title: "Patienten",
           tabBarIcon: ({ color }) => <TabSymbol z="☰" color={color} />,
         }}
       />

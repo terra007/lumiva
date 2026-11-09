@@ -73,7 +73,7 @@ export const inPraxis = angemeldet.use(({ ctx, next }) => {
   return next({ ctx: { ...ctx, praxis: ctx.praxis } });
 });
 
-/** Darf Akteninhalte sehen: Inhaber:in oder Therapeut:in, nicht die Assistenz (§ 45 PThG 2024). */
+/** Darf Akteninhalte sehen: Inhaber oder Therapeut, nicht die Assistenz (§ 45 PThG 2024). */
 export const therapeutisch = inPraxis.use(({ ctx, next }) => {
   if (ctx.praxis.rolle === "assistenz") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung für Akteninhalte." });
@@ -81,10 +81,10 @@ export const therapeutisch = inPraxis.use(({ ctx, next }) => {
   return next();
 });
 
-/** Darf Praxisdaten und Honorare ändern: nur die Inhaber:in. */
+/** Darf Praxisdaten und Honorare ändern: nur der Inhaber. */
 export const inhaberIn = inPraxis.use(({ ctx, next }) => {
   if (ctx.praxis.rolle !== "inhaber") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Nur die Inhaber:in ändert Praxisdaten." });
+    throw new TRPCError({ code: "FORBIDDEN", message: "Nur der Inhaber ändert Praxisdaten." });
   }
   return next();
 });

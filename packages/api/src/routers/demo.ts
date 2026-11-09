@@ -82,7 +82,7 @@ const VERLAUF = [
 ];
 
 export const demoRouter = router({
-  /** Legt Beispielpatient:innen mit Terminen, Doku und Aufgaben an, damit man LUMIVA sofort ausprobieren kann. */
+  /** Legt Beispielpatienten mit Terminen, Doku und Aufgaben an, damit man LUMIVA sofort ausprobieren kann. */
   laden: therapeutisch.mutation(async ({ ctx }) => {
     const [vorhanden] = await ctx.db
       .select({ anzahl: count() })
