@@ -1,5 +1,6 @@
 import { naechsteHonorarnoteNummer, schema } from "@lumiva/db";
 import {
+  anschriftText,
   fehlendeKostenzuschussAngaben,
   formatHonorarnoteNummer,
   type HonorarnoteInhalt,
@@ -12,7 +13,7 @@ import { z } from "zod";
 import { honorarnotePdf } from "../pdf";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router, therapeutisch } from "../trpc";
-import { dec, decOpt, enc, patientName, protokollieren } from "../werkzeuge";
+import { dec, decOpt, enc, kontaktLesen, patientName, protokollieren } from "../werkzeuge";
 import {
   bezahlteSitzungen,
   noteAusgleichen,
@@ -153,11 +154,9 @@ export const honorarnotenRouter = router({
         letzteDiagnose(ctx, patient.id),
       ]);
       if (!praxis) throw new TRPCError({ code: "NOT_FOUND" });
-      const kontakt = JSON.parse(
-        decOpt(ctx.praxis, "patienten.kontakt", patient.id, patient.kontaktEnc) ?? "{}",
-      ) as {
-        anschrift?: string;
-      };
+      const kontakt = kontaktLesen(
+        decOpt(ctx.praxis, "patienten.kontakt", patient.id, patient.kontaktEnc),
+      );
       const heute = wienDatum(new Date());
       const jahr = Number(heute.slice(0, 4));
       const id = crypto.randomUUID();
@@ -166,7 +165,7 @@ export const honorarnotenRouter = router({
         ausstellungsdatum: heute,
         praxis: {
           name: praxis.name,
-          anschrift: praxis.anschrift,
+          anschrift: anschriftText(praxis),
           telefon: praxis.telefon,
           email: praxis.email,
           iban: praxis.iban,
@@ -186,7 +185,7 @@ export const honorarnotenRouter = router({
           ),
           svNummer: decOpt(ctx.praxis, "patienten.sv_nummer", patient.id, patient.svNummerEnc),
           versicherungstraeger: patient.versicherungstraeger,
-          anschrift: kontakt.anschrift || null,
+          anschrift: anschriftText(kontakt) || null,
         },
         diagnoseIcd10,
         sitzungen: gewaehlt.map((t) => ({

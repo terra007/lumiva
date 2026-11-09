@@ -159,3 +159,48 @@ export function AktionsKnopf({
     </form>
   );
 }
+
+/** Straße mit Hausnummer, darunter PLZ und Ort nebeneinander. */
+export function AnschriftFelder({
+  wert,
+  pflicht = false,
+  autoComplete = true,
+}: {
+  wert?: { strasse: string; plz: string; ort: string };
+  pflicht?: boolean;
+  /** Bei Patientendaten aus, damit der Browser keine eigenen Adressen vorschlägt. */
+  autoComplete?: boolean;
+}) {
+  return (
+    <>
+      <Feld
+        name="strasse"
+        label="Straße und Hausnummer"
+        pflicht={pflicht}
+        wert={wert?.strasse}
+        placeholder="Musterstraße 1/3"
+        autoComplete={autoComplete ? "street-address" : "off"}
+      />
+      <div className="grid grid-cols-[7rem_1fr] gap-4">
+        <Feld
+          name="plz"
+          label="PLZ"
+          pflicht={pflicht}
+          wert={wert?.plz}
+          inputMode="numeric"
+          placeholder="1010"
+          maxLength={10}
+          autoComplete={autoComplete ? "postal-code" : "off"}
+        />
+        <Feld
+          name="ort"
+          label="Ort"
+          pflicht={pflicht}
+          wert={wert?.ort}
+          placeholder="Wien"
+          autoComplete={autoComplete ? "address-level2" : "off"}
+        />
+      </div>
+    </>
+  );
+}

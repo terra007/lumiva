@@ -9,16 +9,17 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router, therapeutisch } from "../trpc";
-import { dec, decOpt, enc, protokollieren } from "../werkzeuge";
+import { dec, decOpt, enc, kontaktLesen, protokollieren } from "../werkzeuge";
 
 export const VERSICHERUNGSTRAEGER = ["oegk", "bvaeb", "svs", "kfa", "privat", "sonstige"] as const;
 
 const kontaktSchema = z.object({
   telefon: z.string().trim().max(40).default(""),
   email: z.string().trim().max(120).default(""),
-  anschrift: z.string().trim().max(300).default(""),
+  strasse: z.string().trim().max(200).default(""),
+  plz: z.string().trim().max(10).default(""),
+  ort: z.string().trim().max(100).default(""),
 });
-type Kontakt = z.infer<typeof kontaktSchema>;
 
 const stammdaten = z.object({
   vorname: z.string().trim().min(1).max(80),
@@ -46,9 +47,7 @@ function entschluesselt(ctx: { praxis: Parameters<typeof dec>[0] }, p: PatientZe
     nachname: dec(ctx.praxis, "patienten.nachname", p.id, p.nachnameEnc),
     geburtsdatum: dec(ctx.praxis, "patienten.geburtsdatum", p.id, p.geburtsdatumEnc),
     svNummer: decOpt(ctx.praxis, "patienten.sv_nummer", p.id, p.svNummerEnc) ?? "",
-    kontakt: (kontaktText
-      ? JSON.parse(kontaktText)
-      : { telefon: "", email: "", anschrift: "" }) as Kontakt,
+    kontakt: kontaktLesen(kontaktText),
     versicherungstraeger: p.versicherungstraeger,
     status: p.status,
     therapeutId: p.therapeutId,

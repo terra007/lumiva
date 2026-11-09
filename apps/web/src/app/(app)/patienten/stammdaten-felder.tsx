@@ -1,5 +1,5 @@
 import type { Patient } from "@lumiva/api";
-import { Auswahl, Feld } from "@/components/formular";
+import { AnschriftFelder, Auswahl, Feld } from "@/components/formular";
 import { TRAEGER } from "@/lib/format";
 
 export function StammdatenFelder({ p }: { p?: Patient }) {
@@ -26,12 +26,7 @@ export function StammdatenFelder({ p }: { p?: Patient }) {
         placeholder="1234 010180"
         hinweis="10 Ziffern. Für den Kostenzuschuss nötig, bei Selbstzahlern optional."
       />
-      <Feld
-        name="anschrift"
-        label="Anschrift"
-        wert={p?.kontakt.anschrift}
-        placeholder="Straße 1, 1010 Wien"
-      />
+      <AnschriftFelder wert={p?.kontakt} autoComplete={false} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Feld name="telefon" label="Telefon" typ="tel" wert={p?.kontakt.telefon} />
         <Feld name="email" label="E-Mail" typ="email" wert={p?.kontakt.email} />

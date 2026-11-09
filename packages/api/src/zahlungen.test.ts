@@ -66,7 +66,9 @@ async function praxisMitNote() {
   await db.insert(schema.user).values(maria);
   await createCaller(await kontextFuer(maria)).praxis.anlegen({
     name: "Praxis Muster",
-    anschrift: "Musterstraße 1, 1010 Wien",
+    strasse: "Musterstraße 1",
+    plz: "1010",
+    ort: "Wien",
   });
   const api = createCaller(await kontextFuer(maria));
   const [einzel] = (await api.praxis.sitzungsarten()).filter((s) => s.name === "Einzelsitzung");
@@ -76,7 +78,7 @@ async function praxisMitNote() {
     geburtsdatum: "1988-04-12",
     svNummer: "1237 010180",
     versicherungstraeger: "oegk",
-    kontakt: { telefon: "", email: "", anschrift: "Testgasse 2, 1020 Wien" },
+    kontakt: { telefon: "", email: "", strasse: "Testgasse 2", plz: "1020", ort: "Wien" },
   });
   await api.doku.anlegen({
     patientId,

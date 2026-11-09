@@ -1,3 +1,4 @@
+import { anschriftText } from "@lumiva/domain";
 import { formatDatum } from "@/lib/format";
 import { praxisApi } from "@/server/lumiva";
 import { DruckenKnopf } from "./drucken-knopf";
@@ -22,7 +23,7 @@ export default async function Einwilligung({ params }: PageProps<"/druck/einwill
       <header className="text-sm">
         <p className="font-semibold">{praxis.name}</p>
         <p>{ich.benutzer?.name}</p>
-        <p>{praxis.anschrift}</p>
+        <p>{anschriftText(praxis)}</p>
       </header>
       <h1 className="font-semibold text-2xl">
         Einwilligung in die Tonaufnahme von Psychotherapie-Sitzungen

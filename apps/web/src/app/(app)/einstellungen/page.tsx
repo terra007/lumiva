@@ -1,4 +1,4 @@
-import { AktionsKnopf, Feld, Formular } from "@/components/formular";
+import { AktionsKnopf, AnschriftFelder, Feld, Formular } from "@/components/formular";
 import {
   praxisSpeichern,
   sitzungsartSpeichern,
@@ -28,7 +28,7 @@ export default async function Einstellungen() {
         <Formular aktion={praxisSpeichern} knopf="Speichern">
           <fieldset disabled={!inhaber} className="flex flex-col gap-4">
             <Feld name="name" label="Name der Praxis" pflicht wert={e.name} />
-            <Feld name="anschrift" label="Anschrift" pflicht wert={e.anschrift} />
+            <AnschriftFelder pflicht wert={e} />
             <Feld
               name="berufsbezeichnung"
               label="Deine Berufsbezeichnung"

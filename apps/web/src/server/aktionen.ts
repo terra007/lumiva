@@ -15,7 +15,9 @@ const FELDNAMEN: Record<string, string> = {
   geburtsdatum: "Geburtsdatum",
   svNummer: "Sozialversicherungsnummer",
   name: "Name",
-  anschrift: "Anschrift",
+  strasse: "Straße",
+  plz: "PLZ",
+  ort: "Ort",
   email: "E-Mail",
   iban: "IBAN",
   inhalt: "Text",
@@ -61,6 +63,11 @@ async function ausfuehren(fn: () => Promise<unknown>): Promise<Ergebnis> {
 
 const s = (d: FormData, k: string) => String(d.get(k) ?? "").trim();
 const optional = (d: FormData, k: string) => s(d, k) || undefined;
+const anschrift = (d: FormData) => ({
+  strasse: s(d, "strasse"),
+  plz: s(d, "plz"),
+  ort: s(d, "ort"),
+});
 const cent = (d: FormData, k: string) => Math.round(Number(s(d, k).replace(",", ".")) * 100);
 
 // Praxis
@@ -69,7 +76,7 @@ export async function praxisAnlegen(_: Ergebnis, d: FormData): Promise<Ergebnis>
   const r = await ausfuehren(async () =>
     (await api()).praxis.anlegen({
       name: s(d, "name"),
-      anschrift: s(d, "anschrift"),
+      ...anschrift(d),
       telefon: optional(d, "telefon"),
       email: s(d, "email"),
       iban: s(d, "iban"),
@@ -84,7 +91,7 @@ export async function praxisSpeichern(_: Ergebnis, d: FormData): Promise<Ergebni
   return ausfuehren(async () =>
     (await api()).praxis.speichern({
       name: s(d, "name"),
-      anschrift: s(d, "anschrift"),
+      ...anschrift(d),
       telefon: optional(d, "telefon"),
       email: s(d, "email"),
       iban: s(d, "iban"),
@@ -118,7 +125,7 @@ function stammdaten(d: FormData) {
     geburtsdatum: s(d, "geburtsdatum"),
     svNummer: s(d, "svNummer"),
     versicherungstraeger: s(d, "versicherungstraeger") as "oegk",
-    kontakt: { telefon: s(d, "telefon"), email: s(d, "email"), anschrift: s(d, "anschrift") },
+    kontakt: { telefon: s(d, "telefon"), email: s(d, "email"), ...anschrift(d) },
   };
 }
 

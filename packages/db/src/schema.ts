@@ -63,7 +63,9 @@ export const eintragArt = pgEnum("eintrag_art", ["erstgespraech", "verlauf", "ab
 export const praxen = pgTable("praxen", {
   id: id(),
   name: text().notNull(),
-  anschrift: text().notNull(),
+  strasse: text().notNull().default(""),
+  plz: text().notNull().default(""),
+  ort: text().notNull().default(""),
   telefon: text(),
   email: text(),
   iban: text(),
