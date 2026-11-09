@@ -1,3 +1,4 @@
+import { abwesenheitenRouter } from "./routers/abwesenheiten";
 import { aufgabenRouter } from "./routers/aufgaben";
 import { demoRouter } from "./routers/demo";
 import { dokuRouter } from "./routers/doku";
@@ -15,6 +16,7 @@ export const appRouter = router({
   praxis: praxisRouter,
   patienten: patientenRouter,
   termine: termineRouter,
+  abwesenheiten: abwesenheitenRouter,
   doku: dokuRouter,
   honorarnoten: honorarnotenRouter,
   aufgaben: aufgabenRouter,
