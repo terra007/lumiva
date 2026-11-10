@@ -10,7 +10,15 @@ export default async function Einrichten() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-6 py-16">
       <header className="flex flex-col gap-2">
-        <h1 className="font-semibold text-3xl tracking-tight">Willkommen, {benutzer.name}</h1>
+        <p className="font-semibold text-xl tracking-tight">
+          LUMIVA<span className="text-akzent">.</span>
+        </p>
+        <p className="font-medium text-akzent-text text-xs uppercase tracking-wide">
+          Schritt 2 von 2 · Praxis anlegen
+        </p>
+        <h1 className="font-semibold text-2xl tracking-tight md:text-3xl">
+          Willkommen, {benutzer.name}
+        </h1>
         <p className="text-muted">
           Lege deine Praxis an. Diese Angaben erscheinen auf deinen Honorarnoten und lassen sich
           später ändern.
@@ -28,7 +36,7 @@ export default async function Einrichten() {
           <Feld
             name="berufsbezeichnung"
             label="Deine Berufsbezeichnung"
-            placeholder="Psychotherapeutin (Verhaltenstherapie)"
+            placeholder="Psychotherapeut (Verhaltenstherapie)"
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <Feld name="telefon" label="Telefon" typ="tel" />

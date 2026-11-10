@@ -1,16 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "expo-router";
-import { useState } from "react";
-import { Pressable, TextInput } from "react-native";
+import { Fragment, useState } from "react";
+import { Pressable, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { Fehler, Karte, Laden, Seite } from "@/components/ui";
-import { useTheme } from "@/hooks/use-theme";
+import {
+  Abzeichen,
+  Eingabe,
+  Fehler,
+  Karte,
+  Laden,
+  Leer,
+  Seite,
+  Trenner,
+  Zeichen,
+} from "@/components/ui";
+import { Spacing } from "@/constants/theme";
 import { fehlerText, hinweisText, TRAEGER } from "@/lib/format";
 import { useTRPC } from "@/lib/trpc";
 
 export default function Patienten() {
   const trpc = useTRPC();
-  const theme = useTheme();
   const [suche, setSuche] = useState("");
   const liste = useQuery(trpc.patienten.liste.queryOptions());
   const gefiltert = (liste.data ?? []).filter((p) =>
@@ -18,44 +27,62 @@ export default function Patienten() {
   );
   return (
     <Seite titel="Patienten" neuLaden={() => liste.refetch()} laedt={liste.isRefetching}>
-      <TextInput
+      <Eingabe
         placeholder="Name suchen …"
-        placeholderTextColor={theme.textSecondary}
+        accessibilityLabel="Name suchen"
         value={suche}
         onChangeText={setSuche}
-        style={{
-          borderWidth: 1,
-          borderColor: theme.backgroundSelected,
-          borderRadius: 10,
-          padding: 10,
-          color: theme.text,
-          fontSize: 16,
-        }}
+        autoCorrect={false}
+        clearButtonMode="while-editing"
       />
       {liste.isPending ? (
         <Laden />
       ) : liste.error ? (
         <Fehler text={fehlerText(liste.error)} />
+      ) : gefiltert.length === 0 ? (
+        <Leer
+          zeichen="patienten"
+          text={
+            suche.trim()
+              ? `Niemand gefunden für „${suche.trim()}“.`
+              : "Noch keine aktiven Patienten."
+          }
+        />
       ) : (
-        gefiltert.map((p) => (
-          <Link key={p.id} href={{ pathname: "/patient/[id]", params: { id: p.id } }} asChild>
-            <Pressable>
-              <Karte>
-                <ThemedText type="subtitle">
-                  {p.nachname}, {p.vorname}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {TRAEGER[p.versicherungstraeger]} · {p.sitzungen} Sitzungen
-                </ThemedText>
-                {p.hinweise.map((h) => (
-                  <ThemedText key={h.art} type="small" themeColor="hinweis">
-                    {hinweisText(h)}
-                  </ThemedText>
-                ))}
-              </Karte>
-            </Pressable>
-          </Link>
-        ))
+        <Karte style={{ padding: 0, gap: 0 }}>
+          {gefiltert.map((p, i) => (
+            <Fragment key={p.id}>
+              {i > 0 && <Trenner />}
+              <Link href={{ pathname: "/patient/[id]", params: { id: p.id } }} asChild>
+                {/* Layout auf einer inneren View: Link asChild reicht eine Style-Funktion nicht durch. */}
+                <Pressable accessibilityRole="link">
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: Spacing.two,
+                      padding: Spacing.three,
+                    }}
+                  >
+                    <View style={{ flex: 1, gap: Spacing.one }}>
+                      <ThemedText style={{ fontWeight: "600" }}>
+                        {p.nachname}, {p.vorname}
+                      </ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {TRAEGER[p.versicherungstraeger]} · {p.sitzungen}{" "}
+                        {p.sitzungen === 1 ? "Sitzung" : "Sitzungen"}
+                      </ThemedText>
+                      {p.hinweise.map((h) => (
+                        <Abzeichen key={h.art} text={hinweisText(h)} art="hinweis" />
+                      ))}
+                    </View>
+                    <Zeichen name="rechts" farbe="textSecondary" />
+                  </View>
+                </Pressable>
+              </Link>
+            </Fragment>
+          ))}
+        </Karte>
       )}
     </Seite>
   );
