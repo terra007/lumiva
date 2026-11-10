@@ -90,8 +90,10 @@ test("Aufgaben anlegen und erledigen", async ({ page }) => {
 test("Feiertage und Urlaub im Kalender", async ({ page }) => {
   await neuePraxis(page);
   await page.goto("/kalender?woche=2026-12-21");
-  await expect(page.getByText("Christtag")).toBeVisible();
-  await expect(page.getByText("Stefanitag")).toBeVisible();
+  // Die Namen stehen im Raster und in der Wochenliste fürs Handy; sichtbar ist je eine Fassung.
+  const sichtbar = { visible: true };
+  await expect(page.getByText("Christtag").filter(sichtbar)).toBeVisible();
+  await expect(page.getByText("Stefanitag").filter(sichtbar)).toBeVisible();
 
   const karte = page.locator("section", { hasText: "Urlaub und Abwesenheit" });
   await karte.getByLabel("Von").fill("2026-12-28");
@@ -101,8 +103,8 @@ test("Feiertage und Urlaub im Kalender", async ({ page }) => {
   await expect(karte.getByText("28.12.2026 – 02.01.2027")).toBeVisible();
 
   await page.goto("/kalender?woche=2026-12-28");
-  await expect(page.getByText("Neujahr")).toBeVisible();
-  await expect(page.getByText("Urlaub", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Neujahr").filter(sichtbar)).toBeVisible();
+  await expect(page.getByText("Urlaub", { exact: true }).filter(sichtbar).first()).toBeVisible();
 
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Abwesenheit löschen" }).click();

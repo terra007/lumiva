@@ -57,4 +57,20 @@ test.describe("am Handy", () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await expect(page).toHaveURL(/\/anmelden$/);
   });
+
+  test("Kalender zeigt die Woche als Liste und öffnet einen Termin", async ({ page }) => {
+    await neuePraxis(page);
+    await page.getByRole("button", { name: "Beispieldaten laden" }).click();
+    await expect(page.getByRole("button", { name: "Beispieldaten laden" })).toHaveCount(0);
+    await page.goto("/kalender");
+    await expect(page.getByText("Montag")).toBeVisible();
+    await page
+      .getByRole("link", { name: /^\d{2}:\d{2}–\d{2}:\d{2} / })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/termin=/);
+    await expect(
+      page.getByRole("heading", { name: "Verschieben" }).or(page.getByText("Erledigt").first()),
+    ).toBeVisible();
+  });
 });

@@ -190,14 +190,17 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                   />
                 </label>
               </Formular>
-              <nav className="flex flex-wrap gap-1 border-line border-b" aria-label="Einträge">
+              <nav
+                className="flex gap-1 overflow-x-auto border-line border-b"
+                aria-label="Einträge"
+              >
                 {(Object.keys(DOKU_ANSICHTEN) as DokuAnsicht[]).map((a) => (
                   <Link
                     key={a}
                     href={`/patienten/${p.id}?doku=${a}`}
                     scroll={false}
                     aria-current={a === ansicht ? "page" : undefined}
-                    className={`-mb-px border-b-2 px-3 py-2 font-medium text-sm ${
+                    className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 font-medium text-sm ${
                       a === ansicht
                         ? "border-foreground text-foreground"
                         : "border-transparent text-muted hover:text-foreground"

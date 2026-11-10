@@ -24,6 +24,7 @@ const HALBSTUNDEN = STUNDEN.flatMap((h) => {
   return [`${hh}:00`, `${hh}:30`];
 });
 const TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+const TAGE_LANG = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
 export default async function Kalender({ searchParams }: PageProps<"/kalender">) {
   const q = await searchParams;
@@ -119,7 +120,69 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
       </Seitenkopf>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="karte overflow-x-auto p-0">
+        {/* Handy: Wochenliste statt Raster, das dort nur mit seitlichem Scrollen passt. */}
+        <ol className="flex flex-col gap-3 md:hidden">
+          {tage.map((tag, i) => {
+            const amTag = termine.filter((t) => datumIso(t.beginn) === tag);
+            return (
+              <li key={tag} className={`karte flex flex-col gap-2 p-4 ${tagKlasse(tag)}`}>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-full font-semibold tabular-nums ${tag === heute ? "bg-foreground text-background" : "bg-leiste"}`}
+                  >
+                    {Number(tag.slice(8, 10))}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="font-medium text-sm">
+                      {TAGE_LANG[i]}
+                      {tag === heute && <span className="font-normal text-muted"> · heute</span>}
+                    </span>
+                    {feiertag(tag) && (
+                      <span className="truncate text-rose-700 text-xs dark:text-rose-300">
+                        {feiertag(tag)?.name}
+                      </span>
+                    )}
+                    {abwesend(tag).map((a) => (
+                      <span
+                        key={a.id}
+                        className="truncate text-amber-800 text-xs dark:text-amber-300"
+                      >
+                        {abwesenheitText(a)}
+                      </span>
+                    ))}
+                  </span>
+                  <Link
+                    href={link(woche, `&datum=${tag}${patientParam}#neuer-termin`)}
+                    className="knopf-symbol"
+                    aria-label={`Neuer Termin am ${formatDatum(tag)}`}
+                  >
+                    <Zeichen name="plus" />
+                  </Link>
+                </div>
+                {amTag.length > 0 && (
+                  <ul className="flex flex-col gap-1.5">
+                    {amTag.map((t) => (
+                      <li key={t.id}>
+                        <Link
+                          href={link(woche, `&termin=${t.id}#termin`)}
+                          className={`flex items-center gap-3 rounded-lg border-current/20 border-l-[3px] px-3 py-2 text-sm ${TERMIN_STATUS[t.status]?.klasse} ${gewaehlt?.id === t.id ? "ring-2 ring-akzent" : ""} ${t.status === "abgesagt" ? "line-through opacity-60" : ""}`}
+                        >
+                          <span className="font-semibold tabular-nums">
+                            {uhrzeit(t.beginn)}–{uhrzeit(t.ende)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{t.patientName}</span>
+                          <Zeichen name="rechts" className="size-4 opacity-60" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="karte hidden self-start overflow-x-auto p-0 md:block">
           <div className="grid min-w-[640px] grid-cols-[52px_repeat(7,minmax(0,1fr))]">
             <div className="sticky top-0 border-line border-b" />
             {tage.map((t, i) => (
@@ -262,7 +325,8 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
               )}
               {/* Bezahlte Sitzungen bleiben, wie sie sind; sonst stimmt die Zahlung nicht mehr. */}
               {!gewaehlt.bezahltAm && (
-                <>
+                <div className="flex flex-col gap-2 border-line border-t pt-3">
+                  <h3 className="font-medium text-muted text-xs uppercase tracking-wide">Status</h3>
                   <div className="flex flex-wrap gap-2">
                     {(["erledigt", "abgesagt", "geplant"] as const)
                       .filter((s) => s !== gewaehlt.status)
@@ -272,6 +336,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                           aktion={terminStatus}
                           felder={{ id: gewaehlt.id, status: s }}
                           text={TERMIN_STATUS[s]?.text ?? s}
+                          klasse={s === "erledigt" ? "knopf" : "knopf-zweit"}
                         />
                       ))}
                   </div>
@@ -279,50 +344,57 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                     <Formular
                       aktion={terminStatus}
                       knopf="Nicht erschienen"
-                      knopfKlasse="knopf-zweit"
-                      className="flex items-end gap-2"
+                      knopfKlasse="knopf-zweit w-full"
+                      className="grid grid-cols-[1fr_auto] items-end gap-2 [&>p]:col-span-2"
                     >
                       <input type="hidden" name="id" value={gewaehlt.id} />
                       <input type="hidden" name="status" value="nicht_erschienen" />
-                      <label className="etikett flex-1 text-xs">
-                        Ausfallhonorar (€, optional)
+                      <label className="etikett font-normal text-muted text-xs">
+                        Ausfallhonorar €
                         <input
                           name="ausfallhonorar"
                           inputMode="decimal"
                           className="eingabe"
-                          placeholder="0"
+                          placeholder="optional"
                         />
                       </label>
                     </Formular>
                   )}
-                </>
+                </div>
               )}
               {gewaehlt.status === "geplant" && (
                 <>
-                  <Formular
-                    aktion={terminVerschieben}
-                    knopf="Verschieben"
-                    knopfKlasse="knopf-zweit"
-                    className="flex flex-wrap items-end gap-2"
-                  >
-                    <input type="hidden" name="id" value={gewaehlt.id} />
-                    <input
-                      name="datum"
-                      type="date"
-                      defaultValue={datumIso(gewaehlt.beginn)}
-                      className="eingabe w-auto"
-                      required
-                    />
-                    <input
-                      name="uhrzeit"
-                      type="time"
-                      defaultValue={uhrzeit(gewaehlt.beginn)}
-                      step={300}
-                      className="eingabe w-auto"
-                      required
-                    />
-                  </Formular>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2 border-line border-t pt-3">
+                    <h3 className="font-medium text-muted text-xs uppercase tracking-wide">
+                      Verschieben
+                    </h3>
+                    <Formular
+                      aktion={terminVerschieben}
+                      knopf="Verschieben"
+                      knopfKlasse="knopf-zweit w-full"
+                      className="grid grid-cols-2 gap-2 [&>div]:col-span-2 [&>p]:col-span-2"
+                    >
+                      <input type="hidden" name="id" value={gewaehlt.id} />
+                      <input
+                        name="datum"
+                        type="date"
+                        aria-label="Neues Datum"
+                        defaultValue={datumIso(gewaehlt.beginn)}
+                        className="eingabe"
+                        required
+                      />
+                      <input
+                        name="uhrzeit"
+                        type="time"
+                        aria-label="Neue Uhrzeit"
+                        defaultValue={uhrzeit(gewaehlt.beginn)}
+                        step={300}
+                        className="eingabe"
+                        required
+                      />
+                    </Formular>
+                  </div>
+                  <div className="flex flex-wrap gap-2 border-line border-t pt-3">
                     <AktionsKnopf
                       aktion={terminLoeschen}
                       felder={{ id: gewaehlt.id, zurueck: link(woche) }}

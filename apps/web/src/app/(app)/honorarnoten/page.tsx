@@ -75,8 +75,9 @@ export default async function Honorarnoten({ searchParams }: PageProps<"/honorar
         </div>
       ) : (
         <div className="karte overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-line border-b text-left text-muted text-xs uppercase tracking-wide">
+          {/* Am Handy wird jede Zeile zu einer kleinen Karte; die Tabelle bleibt dieselbe. */}
+          <table className="w-full text-sm max-md:block">
+            <thead className="border-line border-b text-left text-muted text-xs uppercase tracking-wide max-md:hidden">
               <tr>
                 <th className="px-5 py-3 font-medium">Nummer</th>
                 <th className="px-5 py-3 font-medium">Patient</th>
@@ -86,10 +87,13 @@ export default async function Honorarnoten({ searchParams }: PageProps<"/honorar
                 <th className="px-5 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody className="divide-y divide-line max-md:block">
               {sichtbar.map((n) => (
-                <tr key={n.id} className="transition hover:bg-line/30">
-                  <td className="px-5 py-3 tabular-nums">
+                <tr
+                  key={n.id}
+                  className="transition hover:bg-line/30 max-md:grid max-md:grid-cols-[1fr_auto] max-md:gap-x-3 max-md:gap-y-1 max-md:px-4 max-md:py-3 max-md:[&>td]:p-0"
+                >
+                  <td className="px-5 py-3 tabular-nums max-md:col-start-1 max-md:row-start-1 max-md:font-medium">
                     {therapeutisch ? (
                       <a
                         href={`/honorarnoten/${n.id}/pdf`}
@@ -103,14 +107,18 @@ export default async function Honorarnoten({ searchParams }: PageProps<"/honorar
                       n.nummer
                     )}
                   </td>
-                  <td className="px-5 py-3">
+                  <td className="px-5 py-3 max-md:col-start-1 max-md:row-start-2">
                     <Link href={`/patienten/${n.patientId}`} className="verweis">
                       {n.patientName}
                     </Link>
                   </td>
-                  <td className="px-5 py-3 tabular-nums">{formatDatum(n.ausgestelltAm)}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{euro(n.summeCent)}</td>
-                  <td className="whitespace-nowrap px-5 py-3">
+                  <td className="px-5 py-3 tabular-nums max-md:col-start-1 max-md:row-start-3 max-md:text-muted max-md:text-xs">
+                    {formatDatum(n.ausgestelltAm)}
+                  </td>
+                  <td className="px-5 py-3 text-right tabular-nums max-md:col-start-2 max-md:row-start-1 max-md:font-medium">
+                    {euro(n.summeCent)}
+                  </td>
+                  <td className="px-5 py-3 max-md:col-start-2 max-md:row-span-2 max-md:row-start-2 max-md:text-right md:whitespace-nowrap">
                     <NotenStatus bezahlt={n.bezahltAm} storniert={n.storniertAm} />
                     {n.bezahltAm && (
                       <span className="ml-2 text-muted text-xs">{formatDatum(n.bezahltAm)}</span>
@@ -121,8 +129,8 @@ export default async function Honorarnoten({ searchParams }: PageProps<"/honorar
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-3">
-                    <div className="flex justify-end gap-2">
+                  <td className="px-5 py-3 max-md:col-span-2 max-md:row-start-4 max-md:pt-2!">
+                    <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
                       {therapeutisch && (
                         <a
                           href={`/honorarnoten/${n.id}/pdf`}
