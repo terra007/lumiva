@@ -14,14 +14,15 @@ export function Kennzahl({
 }) {
   const inhalt = (
     <>
-      <span className="text-muted text-sm">{titel}</span>
-      <span className="font-semibold text-3xl tabular-nums tracking-tight">{wert}</span>
-      {unten && <span className="text-muted text-xs">{unten}</span>}
+      <span className="text-muted text-xs leading-snug md:text-sm">{titel}</span>
+      <span className="font-semibold text-xl tabular-nums tracking-tight md:text-3xl">{wert}</span>
+      {unten && <span className="text-muted text-xs leading-snug">{unten}</span>}
     </>
   );
-  if (!href) return <div className="karte flex flex-col gap-1">{inhalt}</div>;
+  const klasse = "karte flex min-w-0 flex-col gap-1 p-3.5 md:p-5";
+  if (!href) return <div className={klasse}>{inhalt}</div>;
   return (
-    <Link href={href} className="karte flex flex-col gap-1 transition hover:border-akzent/60">
+    <Link href={href} className={`${klasse} transition hover:border-akzent/60 hover:shadow-md`}>
       {inhalt}
     </Link>
   );

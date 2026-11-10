@@ -36,7 +36,7 @@ export function AbwesenheitenKarte({
 }) {
   return (
     <section className="karte flex flex-col gap-3">
-      <h2 className="font-semibold">Urlaub und Abwesenheit</h2>
+      <h2 className="karten-titel">Urlaub und Abwesenheit</h2>
       <Formular
         aktion={abwesenheitAnlegen}
         knopf="Eintragen"

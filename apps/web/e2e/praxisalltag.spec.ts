@@ -83,8 +83,8 @@ test("Aufgaben anlegen und erledigen", async ({ page }) => {
   await page.getByRole("button", { name: "Hinzufügen" }).click();
   const aufgabe = page.getByRole("listitem").filter({ hasText: "Befund anfordern" });
   await expect(aufgabe).toBeVisible();
-  await aufgabe.getByRole("button", { name: "✓" }).click();
-  await expect(page.getByRole("button", { name: "↺" })).toBeVisible();
+  await aufgabe.getByRole("button", { name: "Als erledigt markieren" }).click();
+  await expect(page.getByRole("button", { name: "Wieder öffnen" })).toBeVisible();
 });
 
 test("Feiertage und Urlaub im Kalender", async ({ page }) => {

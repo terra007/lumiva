@@ -9,7 +9,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
       <Navigation praxis={praxis.name} benutzer={benutzer.name} rolle={praxis.rolle} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8 md:py-10">{children}</main>
+      {/* Unten Platz für die Navigationsleiste am Handy. */}
+      <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pt-6 pb-28 md:px-8 md:py-10">
+        {children}
+      </main>
     </div>
   );
 }
