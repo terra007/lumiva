@@ -1,0 +1,1 @@
+ALTER TYPE "public"."versicherungstraeger" ADD VALUE 'svs_bauern' BEFORE 'kfa';
