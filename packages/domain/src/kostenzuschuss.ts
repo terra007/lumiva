@@ -6,13 +6,26 @@
 export const SITZUNG_AERZTLICHE_BESTAETIGUNG = 2;
 export const SITZUNG_BEWILLIGUNG = 11;
 
-export type Versicherungstraeger = "oegk" | "bvaeb" | "svs" | "kfa" | "privat" | "sonstige";
+/**
+ * Versicherungsträger des Patienten. Die SVS versichert seit 1.1.2020 Gewerbetreibende (GSVG) und
+ * Bauern (BSVG) gemeinsam (SV-OG, BGBl. I Nr. 100/2018). Bauern werden als eigener Eintrag
+ * `svs_bauern` geführt, damit die Akte und die Honorarnote die Versicherung nach BSVG zeigen.
+ */
+export type Versicherungstraeger =
+  | "oegk"
+  | "bvaeb"
+  | "svs"
+  | "svs_bauern"
+  | "kfa"
+  | "privat"
+  | "sonstige";
 
 /** Anzeigenamen der Versicherungsträger für Oberfläche, App und Honorarnote. */
 export const TRAEGER_NAME: Record<string, string> = {
   oegk: "ÖGK",
   bvaeb: "BVAEB",
   svs: "SVS",
+  svs_bauern: "SVS – Bauern",
   kfa: "KFA",
   privat: "Selbstzahler",
   sonstige: "Sonstige",
@@ -41,7 +54,7 @@ export function kostenzuschussHinweise(stand: KostenzuschussStand): Kostenzuschu
   }
   // Selbstzahler beantragen keinen Kostenzuschuss.
   if (stand.versicherungstraeger === "privat") return [];
-  // Bisher sind nur die ÖGK-Regeln geprüft. BVAEB, SVS und KFA folgen, sobald belegt.
+  // Bisher sind nur die ÖGK-Regeln geprüft. BVAEB, SVS (auch Bauern) und KFA folgen, sobald belegt.
   if (stand.versicherungstraeger !== "oegk") return [{ art: "regeln-selbst-pruefen" }];
 
   const hinweise: KostenzuschussHinweis[] = [];

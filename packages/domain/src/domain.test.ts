@@ -86,6 +86,9 @@ describe("kostenzuschussHinweise", () => {
     expect(
       kostenzuschussHinweise({ ...basis, versicherungstraeger: "svs", naechsteSitzung: 2 }),
     ).toEqual([{ art: "regeln-selbst-pruefen" }]);
+    expect(
+      kostenzuschussHinweise({ ...basis, versicherungstraeger: "svs_bauern", naechsteSitzung: 2 }),
+    ).toEqual([{ art: "regeln-selbst-pruefen" }]);
   });
   it("ist still, wenn alles vorliegt", () => {
     expect(

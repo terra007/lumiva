@@ -47,6 +47,7 @@ export const versicherungstraeger = pgEnum("versicherungstraeger", [
   "oegk",
   "bvaeb",
   "svs",
+  "svs_bauern",
   "kfa",
   "privat",
   "sonstige",

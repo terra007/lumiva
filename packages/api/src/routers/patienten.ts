@@ -11,7 +11,15 @@ import { patientenFilter, patientLaden } from "../sichtbarkeit";
 import { inPraxis, router, therapeutisch } from "../trpc";
 import { dec, decOpt, enc, kontaktLesen, protokollieren } from "../werkzeuge";
 
-export const VERSICHERUNGSTRAEGER = ["oegk", "bvaeb", "svs", "kfa", "privat", "sonstige"] as const;
+export const VERSICHERUNGSTRAEGER = [
+  "oegk",
+  "bvaeb",
+  "svs",
+  "svs_bauern",
+  "kfa",
+  "privat",
+  "sonstige",
+] as const;
 
 const kontaktSchema = z.object({
   telefon: z.string().trim().max(40).default(""),
