@@ -42,3 +42,15 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -f deploy/ionos/Dockerfile -t lumiva-web .
+      - name: Compose-Datei prüfen
+        working-directory: deploy/ionos
+        run: |
+          printf 'LUMIVA_DOMAIN=example.at\nPOSTGRES_PASSWORT=abc\nLUMIVA_HAUPTSCHLUESSEL=x\nBETTER_AUTH_SECRET=y\n' > .env
+          docker compose config --quiet
+          COMPOSE_PROFILES=ki docker compose config --quiet
