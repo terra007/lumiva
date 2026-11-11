@@ -56,7 +56,7 @@ export function DokuText({
         defaultValue={text}
         required={feld === "inhalt"}
         rows={Math.min(16, Math.max(4, text.split("\n").length + 1))}
-        className="eingabe text-sm"
+        className="eingabe"
         // biome-ignore lint/a11y/noAutofocus: Fokus folgt dem Klick auf den Bleistift.
         autoFocus
       />

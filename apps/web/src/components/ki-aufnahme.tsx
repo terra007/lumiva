@@ -175,7 +175,7 @@ export function KiAufnahme({
       )}
       <label className={transkriptSichtbar ? "etikett" : "hidden"}>
         Transkript (wörtlich, wird mitgespeichert)
-        <textarea name="transkript" rows={6} className="eingabe font-normal text-sm" />
+        <textarea name="transkript" rows={6} className="eingabe font-normal" />
       </label>
     </div>
   );
