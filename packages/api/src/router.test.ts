@@ -13,10 +13,13 @@ async function benutzerAnlegen(id: string, name: string) {
 }
 
 /** Kontext wie im echten Server: Praxis und Schlüssel aus der Mitgliedschaft. */
-async function kontextFuer(benutzer: Kontext["benutzer"]): Promise<Kontext> {
+async function kontextFuer(benutzer: Kontext["benutzer"], zweiFaktor = true): Promise<Kontext> {
   const { kontextErstellen } = await import("./kontext");
   const authAttrappe = {
-    api: { getSession: async () => (benutzer ? { user: benutzer } : null) },
+    api: {
+      getSession: async () =>
+        benutzer ? { user: { ...benutzer, twoFactorEnabled: zweiFaktor } } : null,
+    },
   } as unknown as Parameters<typeof kontextErstellen>[0]["auth"];
   return kontextErstellen({ db, auth: authAttrappe, headers: new Headers(), hauptschluessel });
 }
@@ -253,5 +256,30 @@ describe("LUMIVA-API", () => {
     await api.demo.laden();
     expect(await api.patienten.liste()).toHaveLength(6);
     await expect(api.demo.laden()).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("lässt ohne Zwei-Faktor-Anmeldung nur die Frage zu, wer angemeldet ist", async () => {
+    const ohne = await benutzerAnlegen("ohne2fa", "Mag. Ohne Faktor");
+    const api = createCaller(await kontextFuer(ohne, false));
+    expect(await api.praxis.ich()).toMatchObject({ zweiFaktorFehlt: true, praxis: null });
+    await expect(
+      api.praxis.anlegen({ name: "Praxis", strasse: "Gasse 1", plz: "1010", ort: "Wien" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", cause: expect.any(Error) });
+    await expect(api.patienten.liste()).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("verweigert einer Praxis ohne zweiten Faktor den Zugriff auf ihre Daten", async () => {
+    const inhaber = await benutzerAnlegen("spaeter", "Mag. Später Ohne");
+    await createCaller(await kontextFuer(inhaber)).praxis.anlegen({
+      name: "Praxis Später",
+      strasse: "Gasse 2",
+      plz: "1010",
+      ort: "Wien",
+    });
+    const ohne = await kontextFuer(inhaber, false);
+    expect(ohne.praxis).toBeNull();
+    await expect(createCaller(ohne).patienten.liste()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
   });
 });

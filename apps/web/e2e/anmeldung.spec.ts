@@ -1,4 +1,13 @@
-import { expect, PASSWORT, praxisAnlegen, registrieren, test } from "./hilfen";
+import {
+  expect,
+  geheimnisse,
+  PASSWORT,
+  praxisAnlegen,
+  registrieren,
+  test,
+  totp,
+  zweiFaktorEinrichten,
+} from "./hilfen";
 
 test("ohne Anmeldung geht es zur Anmeldeseite", async ({ page }) => {
   await page.goto("/patienten");
@@ -22,6 +31,47 @@ test("Konto erstellen, Praxis anlegen, abmelden und wieder anmelden", async ({ p
 
   await page.getByLabel("Passwort").fill(PASSWORT);
   await page.locator("form").getByRole("button", { name: "Anmelden" }).click();
+  await expect(page.getByRole("heading", { name: "Bestätigungscode" })).toBeVisible();
+  await page.getByLabel("Code").fill("000000");
+  await page.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(page.locator("p[role=alert]")).toContainText("Der Code stimmt nicht");
+
+  await page.getByLabel("Code").fill(totp(geheimnisse.get(email) ?? ""));
+  await page.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("Zwei-Faktor-Anmeldung ist Pflicht und geht auch mit Wiederherstellungscode", async ({
+  page,
+}) => {
+  await page.goto("/anmelden");
+  await page.getByRole("button", { name: "Konto erstellen" }).first().click();
+  await page.getByLabel("Name mit Titel").fill("Mag. Pflicht Test");
+  const email = `pflicht-${Date.now()}@lumiva.test`;
+  await page.getByLabel("E-Mail").fill(email);
+  await page.getByLabel("Passwort").fill(PASSWORT);
+  await page.locator("form").getByRole("button", { name: "Konto erstellen" }).click();
+  await expect(page).toHaveURL(/\/zwei-faktor$/);
+
+  // Ohne zweiten Faktor führt jede Seite zurück zur Einrichtung, die API gibt nichts heraus.
+  await page.goto("/patienten");
+  await expect(page).toHaveURL(/\/zwei-faktor$/);
+  await page.goto("/einrichten");
+  await expect(page).toHaveURL(/\/zwei-faktor$/);
+  const antwort = await page.request.get("/api/trpc/patienten.liste");
+  expect(antwort.status()).toBe(403);
+
+  const [ersatz] = await zweiFaktorEinrichten(page, email);
+  await expect(page).toHaveURL(/\/einrichten$/);
+  await praxisAnlegen(page);
+
+  await page.getByRole("button", { name: "Abmelden" }).click();
+  await page.getByLabel("E-Mail").fill(email);
+  await page.getByLabel("Passwort").fill(PASSWORT);
+  await page.locator("form").getByRole("button", { name: "Anmelden" }).click();
+  await page.getByRole("button", { name: "Kein Zugriff auf die App?" }).click();
+  await page.getByLabel("Wiederherstellungscode").fill(ersatz ?? "");
+  await page.getByRole("button", { name: "Bestätigen" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 

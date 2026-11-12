@@ -88,6 +88,7 @@ const anfrageKontext = cache(async () => kontextAus(await headers()));
 export async function praxisApi() {
   const kontext = await anfrageKontext();
   if (!kontext.benutzer) redirect("/anmelden");
+  if (kontext.zweiFaktorFehlt) redirect("/zwei-faktor");
   if (!kontext.praxis) redirect("/einrichten");
   return createCaller(kontext);
 }

@@ -13,9 +13,13 @@ export async function kontextErstellen(opts: {
 }): Promise<Kontext> {
   const { db, auth, headers, hauptschluessel } = opts;
   const sitzung = await auth.api.getSession({ headers });
-  if (!sitzung) return { db, benutzer: null, praxis: null, hauptschluessel };
+  if (!sitzung)
+    return { db, benutzer: null, praxis: null, zweiFaktorFehlt: false, hauptschluessel };
 
   const benutzer = { id: sitzung.user.id, name: sitzung.user.name, email: sitzung.user.email };
+  const zweiFaktorFehlt = !sitzung.user.twoFactorEnabled;
+  // Ohne zweiten Faktor wird der Datenschlüssel der Praxis gar nicht erst entpackt.
+  if (zweiFaktorFehlt) return { db, benutzer, praxis: null, zweiFaktorFehlt, hauptschluessel };
   const [zeile] = await db
     .select({
       id: schema.praxen.id,
@@ -28,11 +32,12 @@ export async function kontextErstellen(opts: {
     .where(eq(schema.mitgliedschaften.benutzerId, benutzer.id))
     .limit(1);
 
-  if (!zeile) return { db, benutzer, praxis: null, hauptschluessel };
+  if (!zeile) return { db, benutzer, praxis: null, zweiFaktorFehlt, hauptschluessel };
   return {
     db,
     benutzer,
     hauptschluessel,
+    zweiFaktorFehlt,
     praxis: {
       id: zeile.id,
       name: zeile.name,

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { test as basis, expect, type Page } from "@playwright/test";
 
 /**
@@ -21,6 +22,38 @@ export function neueEmail(): string {
   return `test-${Date.now()}-${++zaehler}@lumiva.test`;
 }
 
+/** TOTP-Geheimnis je E-Mail, damit Tests sich erneut anmelden können. */
+export const geheimnisse = new Map<string, string>();
+
+/** Aktueller 6-stelliger Code wie in einer Authenticator-App (RFC 6238, SHA-1, 30 s). */
+export function totp(geheimnis: string, zeit = Date.now()): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const z of geheimnis.replace(/[\s=]/g, "").toUpperCase())
+    bits += alphabet.indexOf(z).toString(2).padStart(5, "0");
+  const schluessel = Buffer.from(bits.match(/.{8}/g)?.map((b) => Number.parseInt(b, 2)) ?? []);
+  const zaehler = Buffer.alloc(8);
+  zaehler.writeBigUInt64BE(BigInt(Math.floor(zeit / 30_000)));
+  const hmac = createHmac("sha1", schluessel).update(zaehler).digest();
+  const versatz = (hmac.at(-1) ?? 0) & 0xf;
+  return String((hmac.readUInt32BE(versatz) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+}
+
+/** Pflichtschritt nach der ersten Anmeldung: Authenticator einrichten, Codes bestätigen. */
+export async function zweiFaktorEinrichten(page: Page, email: string) {
+  await expect(page).toHaveURL(/\/zwei-faktor$/);
+  await page.getByLabel("Zur Bestätigung dein Passwort").fill(PASSWORT);
+  await page.getByRole("button", { name: "Weiter" }).click();
+  const geheimnis = (await page.locator("code").first().textContent()) ?? "";
+  geheimnisse.set(email, geheimnis);
+  await page.getByLabel("Den 6-stelligen Code aus der App eingeben").fill(totp(geheimnis));
+  await page.getByRole("button", { name: "Bestätigen und einschalten" }).click();
+  await expect(page.getByText("Wiederherstellungscodes:")).toBeVisible();
+  const codes = await page.locator("ul li").allTextContents();
+  await page.getByRole("button", { name: "Ich habe die Codes gesichert" }).click();
+  return codes;
+}
+
 export async function registrieren(page: Page, name = "Mag. Maria Muster", email = neueEmail()) {
   await page.goto("/anmelden");
   await page.getByRole("button", { name: "Konto erstellen" }).first().click();
@@ -28,6 +61,7 @@ export async function registrieren(page: Page, name = "Mag. Maria Muster", email
   await page.getByLabel("E-Mail").fill(email);
   await page.getByLabel("Passwort").fill(PASSWORT);
   await page.locator("form").getByRole("button", { name: "Konto erstellen" }).click();
+  await zweiFaktorEinrichten(page, email);
   await expect(page).toHaveURL(/\/einrichten$/);
   return email;
 }
