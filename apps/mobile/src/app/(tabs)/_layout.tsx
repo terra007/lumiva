@@ -1,6 +1,13 @@
 import { Tabs } from "expo-router";
-import { type ColorValue, Text } from "react-native";
+import { Zeichen, type ZeichenName } from "@/components/ui";
 import { useTheme } from "@/hooks/use-theme";
+
+const TABS: { name: string; titel: string; zeichen: ZeichenName }[] = [
+  { name: "index", titel: "Heute", zeichen: "heute" },
+  { name: "patienten", titel: "Patienten", zeichen: "patienten" },
+  { name: "aufgaben", titel: "Aufgaben", zeichen: "aufgaben" },
+  { name: "mehr", titel: "Mehr", zeichen: "mehr" },
+];
 
 export default function TabLayout() {
   const theme = useTheme();
@@ -11,37 +18,27 @@ export default function TabLayout() {
         tabBarActiveTintColor: theme.text,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
-          backgroundColor: theme.backgroundElement,
+          backgroundColor: theme.background,
           borderTopColor: theme.backgroundSelected,
         },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{ title: "Heute", tabBarIcon: ({ color }) => <TabSymbol z="☀︎" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="patienten"
-        options={{
-          title: "Patienten",
-          tabBarIcon: ({ color }) => <TabSymbol z="☰" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="aufgaben"
-        options={{
-          title: "Aufgaben",
-          tabBarIcon: ({ color }) => <TabSymbol z="✓" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="mehr"
-        options={{ title: "Mehr", tabBarIcon: ({ color }) => <TabSymbol z="⋯" color={color} /> }}
-      />
+      {TABS.map((t) => (
+        <Tabs.Screen
+          key={t.name}
+          name={t.name}
+          options={{
+            title: t.titel,
+            tabBarIcon: ({ focused }) => (
+              <Zeichen
+                name={t.zeichen}
+                farbe={focused ? "akzentText" : "textSecondary"}
+                groesse={24}
+              />
+            ),
+          }}
+        />
+      ))}
     </Tabs>
   );
-}
-
-function TabSymbol({ z, color }: { z: string; color: ColorValue }) {
-  return <Text style={{ color, fontSize: 18 }}>{z}</Text>;
 }

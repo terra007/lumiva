@@ -2,7 +2,9 @@ import { tageAddieren, wienDatum, wienZuDate, wochenBeginn } from "@lumiva/domai
 import Link from "next/link";
 import { AktionsKnopf, Auswahl, Feld, Formular } from "@/components/formular";
 import { BezahltAbzeichen } from "@/components/noten-status";
+import { Seitenkopf } from "@/components/seitenkopf";
 import { KassierenKnopf } from "@/components/sumup-zahlung";
+import { Zeichen } from "@/components/zeichen";
 import { datumIso, euro, formatDatum, TERMIN_STATUS, uhrzeit } from "@/lib/format";
 import { terminAnlegen, terminLoeschen, terminStatus, terminVerschieben } from "@/server/aktionen";
 import { praxisApi } from "@/server/lumiva";
@@ -15,13 +17,14 @@ import {
 
 const START = 7;
 const ENDE = 21;
-const PX_PRO_STUNDE = 56;
+const PX_PRO_STUNDE = 60;
 const STUNDEN = Array.from({ length: ENDE - START }, (_, i) => START + i);
 const HALBSTUNDEN = STUNDEN.flatMap((h) => {
   const hh = String(h).padStart(2, "0");
   return [`${hh}:00`, `${hh}:30`];
 });
 const TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+const TAGE_LANG = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
 export default async function Kalender({ searchParams }: PageProps<"/kalender">) {
   const q = await searchParams;
@@ -64,58 +67,145 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
   const abwesend = (tag: string) => frei.abwesenheiten.filter((a) => a.von <= tag && a.bis >= tag);
   /** Hintergrund der Tagesspalte: Feiertag vor eigener Abwesenheit. */
   const tagKlasse = (tag: string) =>
-    feiertag(tag) ? FEIERTAG_KLASSE : abwesend(tag).some((a) => a.eigene) ? ABWESEND_KLASSE : "";
+    feiertag(tag)
+      ? FEIERTAG_KLASSE
+      : abwesend(tag).some((a) => a.eigene)
+        ? ABWESEND_KLASSE
+        : tag === heute
+          ? "bg-akzent/[0.04]"
+          : "";
+  // Rote Linie für „jetzt“ in der heutigen Spalte, wenn die Uhrzeit im Raster liegt.
+  const [jetztH, jetztM] = uhrzeit(new Date()).split(":").map(Number) as [number, number];
+  const jetztTop =
+    jetztH >= START && jetztH < ENDE ? (jetztH - START + jetztM / 60) * PX_PRO_STUNDE : null;
+  const monat = new Intl.DateTimeFormat("de-AT", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${tageAddieren(woche, 3)}T12:00:00Z`));
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="font-semibold text-3xl tracking-tight">Kalender</h1>
-        <div className="flex items-center gap-2 text-sm">
-          <Link
-            href={link(tageAddieren(woche, -7))}
-            className="knopf-zweit"
-            aria-label="Vorige Woche"
-          >
-            ←
-          </Link>
-          <Link href={link(heute)} className="knopf-zweit">
-            Heute
-          </Link>
-          <Link
-            href={link(tageAddieren(woche, 7))}
-            className="knopf-zweit"
-            aria-label="Nächste Woche"
-          >
-            →
-          </Link>
-          <span className="ml-2 font-medium tabular-nums">
-            {formatDatum(woche)} – {formatDatum(tageAddieren(woche, 6))}
+      <Seitenkopf
+        titel="Kalender"
+        untertitel={
+          <span className="tabular-nums">
+            {monat} · {formatDatum(woche)} – {formatDatum(tageAddieren(woche, 6))}
           </span>
-        </div>
-      </header>
+        }
+      >
+        <Link
+          href={link(tageAddieren(woche, -7))}
+          className="knopf-symbol"
+          aria-label="Vorige Woche"
+          title="Vorige Woche"
+        >
+          <Zeichen name="links" />
+        </Link>
+        <Link href={link(heute)} className="knopf-zweit">
+          Heute
+        </Link>
+        <Link
+          href={link(tageAddieren(woche, 7))}
+          className="knopf-symbol"
+          aria-label="Nächste Woche"
+          title="Nächste Woche"
+        >
+          <Zeichen name="rechts" />
+        </Link>
+        <a href="#neuer-termin" className="knopf xl:hidden">
+          <Zeichen name="plus" />
+          Neuer Termin
+        </a>
+      </Seitenkopf>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="karte overflow-x-auto p-0">
-          <div className="grid min-w-[760px] grid-cols-[48px_repeat(7,1fr)]">
-            <div className="border-line border-b" />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+        {/* Handy: Wochenliste statt Raster, das dort nur mit seitlichem Scrollen passt. */}
+        <ol className="flex flex-col gap-3 md:hidden">
+          {tage.map((tag, i) => {
+            const amTag = termine.filter((t) => datumIso(t.beginn) === tag);
+            return (
+              <li key={tag} className={`karte flex flex-col gap-2 p-4 ${tagKlasse(tag)}`}>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-full font-semibold tabular-nums ${tag === heute ? "bg-foreground text-background" : "bg-leiste"}`}
+                  >
+                    {Number(tag.slice(8, 10))}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="font-medium text-sm">
+                      {TAGE_LANG[i]}
+                      {tag === heute && <span className="font-normal text-muted"> · heute</span>}
+                    </span>
+                    {feiertag(tag) && (
+                      <span className="truncate text-rose-700 text-xs dark:text-rose-300">
+                        {feiertag(tag)?.name}
+                      </span>
+                    )}
+                    {abwesend(tag).map((a) => (
+                      <span
+                        key={a.id}
+                        className="truncate text-amber-800 text-xs dark:text-amber-300"
+                      >
+                        {abwesenheitText(a)}
+                      </span>
+                    ))}
+                  </span>
+                  <Link
+                    href={link(woche, `&datum=${tag}${patientParam}#neuer-termin`)}
+                    className="knopf-symbol"
+                    aria-label={`Neuer Termin am ${formatDatum(tag)}`}
+                  >
+                    <Zeichen name="plus" />
+                  </Link>
+                </div>
+                {amTag.length > 0 && (
+                  <ul className="flex flex-col gap-1.5">
+                    {amTag.map((t) => (
+                      <li key={t.id}>
+                        <Link
+                          href={link(woche, `&termin=${t.id}#termin`)}
+                          className={`flex items-center gap-3 rounded-lg border-current/20 border-l-[3px] px-3 py-2 text-sm ${TERMIN_STATUS[t.status]?.klasse} ${gewaehlt?.id === t.id ? "ring-2 ring-akzent" : ""} ${t.status === "abgesagt" ? "line-through opacity-60" : ""}`}
+                        >
+                          <span className="font-semibold tabular-nums">
+                            {uhrzeit(t.beginn)}–{uhrzeit(t.ende)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{t.patientName}</span>
+                          <Zeichen name="rechts" className="size-4 opacity-60" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="karte hidden self-start overflow-x-auto p-0 md:block">
+          <div className="grid min-w-[640px] grid-cols-[52px_repeat(7,minmax(0,1fr))]">
+            <div className="sticky top-0 border-line border-b" />
             {tage.map((t, i) => (
               <div
                 key={t}
-                className={`border-line border-b border-l px-2 py-2 text-center text-sm ${t === heute ? "bg-akzent/10 font-semibold" : tagKlasse(t)}`}
+                className={`flex min-w-0 flex-col items-center gap-0.5 border-line border-b border-l px-1 py-2 text-center text-sm ${tagKlasse(t)}`}
               >
-                {TAGE[i]}{" "}
-                <span className="text-muted tabular-nums">
-                  {t.slice(8, 10)}.{t.slice(5, 7)}.
+                <span className="text-muted text-xs uppercase tracking-wide">{TAGE[i]}</span>
+                <span
+                  className={`flex size-8 items-center justify-center rounded-full font-semibold tabular-nums ${t === heute ? "bg-foreground text-background" : ""}`}
+                  aria-current={t === heute ? "date" : undefined}
+                >
+                  {Number(t.slice(8, 10))}
                 </span>
                 {feiertag(t) && (
-                  <span className="block truncate font-medium text-rose-700 text-xs dark:text-rose-300">
+                  <span className="block max-w-full truncate font-medium text-rose-700 text-xs dark:text-rose-300">
                     {feiertag(t)?.name}
                   </span>
                 )}
                 {abwesend(t).map((a) => (
                   <span
                     key={a.id}
-                    className="block truncate font-normal text-amber-800 text-xs dark:text-amber-300"
+                    className="block max-w-full truncate font-normal text-amber-800 text-xs dark:text-amber-300"
                   >
                     {abwesenheitText(a)}
                   </span>
@@ -123,13 +213,13 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
               </div>
             ))}
             <div className="relative" style={{ height: (ENDE - START) * PX_PRO_STUNDE }}>
-              {STUNDEN.map((stunde) => (
+              {STUNDEN.slice(1).map((stunde) => (
                 <span
                   key={stunde}
-                  className="absolute right-2 text-muted text-xs tabular-nums"
-                  style={{ top: (stunde - START) * PX_PRO_STUNDE - 6 }}
+                  className="absolute right-2 text-[11px] text-muted tabular-nums"
+                  style={{ top: (stunde - START) * PX_PRO_STUNDE - 7 }}
                 >
-                  {stunde}
+                  {String(stunde).padStart(2, "0")}:00
                 </span>
               ))}
             </div>
@@ -142,10 +232,19 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                 {STUNDEN.map((stunde) => (
                   <div
                     key={stunde}
-                    className="absolute inset-x-0 border-line/60 border-t"
+                    className="absolute inset-x-0 border-line/70 border-t"
                     style={{ top: (stunde - START) * PX_PRO_STUNDE }}
                   />
                 ))}
+                {tag === heute && jetztTop !== null && (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 z-20 h-0.5 bg-red-500"
+                    style={{ top: jetztTop }}
+                  >
+                    <span className="-left-1 -top-[3px] absolute size-2 rounded-full bg-red-500" />
+                  </div>
+                )}
                 {/* Freie Halbstunden: Klick schlägt dort einen neuen Termin vor. Termine liegen darüber. */}
                 {HALBSTUNDEN.map((zeit, i) => {
                   const aktiv = vorDatum === tag && vorUhrzeit === zeit;
@@ -170,15 +269,19 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                     const [h, m] = uhrzeit(t.beginn).split(":").map(Number) as [number, number];
                     const dauer = (t.ende.getTime() - t.beginn.getTime()) / 60_000;
                     const top = Math.max(0, (h - START + m / 60) * PX_PRO_STUNDE);
+                    const hoehe = Math.max(22, (dauer / 60) * PX_PRO_STUNDE - 2);
                     return (
                       <Link
                         key={t.id}
-                        href={link(woche, `&termin=${t.id}`)}
-                        className={`absolute inset-x-1 overflow-hidden rounded-md px-2 py-1 text-xs leading-tight shadow-sm ring-1 ring-black/5 ${TERMIN_STATUS[t.status]?.klasse} ${gewaehlt?.id === t.id ? "ring-2 ring-akzent" : ""} ${t.status === "abgesagt" ? "line-through opacity-60" : ""}`}
-                        style={{ top, height: Math.max(22, (dauer / 60) * PX_PRO_STUNDE - 2) }}
+                        href={link(woche, `&termin=${t.id}#termin`)}
+                        title={`${uhrzeit(t.beginn)}–${uhrzeit(t.ende)} ${t.patientName} · ${t.sitzungsart}`}
+                        className={`absolute inset-x-1 z-10 flex flex-col overflow-hidden rounded-lg border-current/20 border-l-[3px] px-1.5 py-1 text-xs leading-tight shadow-sm transition hover:z-20 hover:shadow-md ${TERMIN_STATUS[t.status]?.klasse} ${gewaehlt?.id === t.id ? "ring-2 ring-akzent" : ""} ${t.status === "abgesagt" ? "line-through opacity-60" : ""}`}
+                        style={{ top, height: hoehe }}
                       >
                         <span className="font-semibold tabular-nums">{uhrzeit(t.beginn)}</span>{" "}
-                        {t.patientName}
+                        <span className={hoehe < 56 ? "truncate" : "line-clamp-2"}>
+                          {t.patientName}
+                        </span>
                       </Link>
                     );
                   })}
@@ -189,7 +292,10 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
 
         <aside className="flex flex-col gap-6">
           {gewaehlt && (
-            <section className="karte flex flex-col gap-3">
+            <section
+              id="termin"
+              className="karte flex scroll-mt-20 flex-col gap-3 ring-1 ring-akzent/40"
+            >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <Link href={`/patienten/${gewaehlt.patientId}`} className="verweis font-semibold">
@@ -200,8 +306,12 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                     {uhrzeit(gewaehlt.ende)} · {gewaehlt.sitzungsart} · {euro(gewaehlt.honorarCent)}
                   </p>
                 </div>
-                <Link href={link(woche)} className="text-muted" aria-label="Schließen">
-                  ✕
+                <Link
+                  href={link(woche)}
+                  className="knopf-symbol size-8 border-transparent"
+                  aria-label="Schließen"
+                >
+                  <Zeichen name="schliessen" />
                 </Link>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -215,7 +325,8 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
               )}
               {/* Bezahlte Sitzungen bleiben, wie sie sind; sonst stimmt die Zahlung nicht mehr. */}
               {!gewaehlt.bezahltAm && (
-                <>
+                <div className="flex flex-col gap-2 border-line border-t pt-3">
+                  <h3 className="font-medium text-muted text-xs uppercase tracking-wide">Status</h3>
                   <div className="flex flex-wrap gap-2">
                     {(["erledigt", "abgesagt", "geplant"] as const)
                       .filter((s) => s !== gewaehlt.status)
@@ -225,6 +336,7 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                           aktion={terminStatus}
                           felder={{ id: gewaehlt.id, status: s }}
                           text={TERMIN_STATUS[s]?.text ?? s}
+                          klasse={s === "erledigt" ? "knopf" : "knopf-zweit"}
                         />
                       ))}
                   </div>
@@ -232,50 +344,57 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
                     <Formular
                       aktion={terminStatus}
                       knopf="Nicht erschienen"
-                      knopfKlasse="knopf-zweit"
-                      className="flex items-end gap-2"
+                      knopfKlasse="knopf-zweit w-full"
+                      className="grid grid-cols-[1fr_auto] items-end gap-2 [&>p]:col-span-2"
                     >
                       <input type="hidden" name="id" value={gewaehlt.id} />
                       <input type="hidden" name="status" value="nicht_erschienen" />
-                      <label className="etikett flex-1 text-xs">
-                        Ausfallhonorar (€, optional)
+                      <label className="etikett font-normal text-muted text-xs">
+                        Ausfallhonorar €
                         <input
                           name="ausfallhonorar"
                           inputMode="decimal"
                           className="eingabe"
-                          placeholder="0"
+                          placeholder="optional"
                         />
                       </label>
                     </Formular>
                   )}
-                </>
+                </div>
               )}
               {gewaehlt.status === "geplant" && (
                 <>
-                  <Formular
-                    aktion={terminVerschieben}
-                    knopf="Verschieben"
-                    knopfKlasse="knopf-zweit"
-                    className="flex flex-wrap items-end gap-2"
-                  >
-                    <input type="hidden" name="id" value={gewaehlt.id} />
-                    <input
-                      name="datum"
-                      type="date"
-                      defaultValue={datumIso(gewaehlt.beginn)}
-                      className="eingabe w-auto"
-                      required
-                    />
-                    <input
-                      name="uhrzeit"
-                      type="time"
-                      defaultValue={uhrzeit(gewaehlt.beginn)}
-                      step={300}
-                      className="eingabe w-auto"
-                      required
-                    />
-                  </Formular>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2 border-line border-t pt-3">
+                    <h3 className="font-medium text-muted text-xs uppercase tracking-wide">
+                      Verschieben
+                    </h3>
+                    <Formular
+                      aktion={terminVerschieben}
+                      knopf="Verschieben"
+                      knopfKlasse="knopf-zweit w-full"
+                      className="grid grid-cols-2 gap-2 [&>div]:col-span-2 [&>p]:col-span-2"
+                    >
+                      <input type="hidden" name="id" value={gewaehlt.id} />
+                      <input
+                        name="datum"
+                        type="date"
+                        aria-label="Neues Datum"
+                        defaultValue={datumIso(gewaehlt.beginn)}
+                        className="eingabe"
+                        required
+                      />
+                      <input
+                        name="uhrzeit"
+                        type="time"
+                        aria-label="Neue Uhrzeit"
+                        defaultValue={uhrzeit(gewaehlt.beginn)}
+                        step={300}
+                        className="eingabe"
+                        required
+                      />
+                    </Formular>
+                  </div>
+                  <div className="flex flex-wrap gap-2 border-line border-t pt-3">
                     <AktionsKnopf
                       aktion={terminLoeschen}
                       felder={{ id: gewaehlt.id, zurueck: link(woche) }}
@@ -298,13 +417,13 @@ export default async function Kalender({ searchParams }: PageProps<"/kalender">)
             </section>
           )}
 
-          <section id="neuer-termin" className="karte flex flex-col gap-3 scroll-mt-6">
-            <h2 className="font-semibold">Neuer Termin</h2>
+          <section id="neuer-termin" className="karte flex scroll-mt-20 flex-col gap-3">
+            <h2 className="karten-titel">Neuer Termin</h2>
             {patienten.length === 0 ? (
               <p className="text-muted text-sm">
-                Lege zuerst eine{" "}
+                Lege zuerst einen{" "}
                 <Link href="/patienten/neu" className="verweis">
-                  Patient
+                  Patienten
                 </Link>{" "}
                 an.
               </p>

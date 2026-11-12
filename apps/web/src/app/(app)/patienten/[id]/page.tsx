@@ -4,7 +4,9 @@ import { AktionsKnopf, Feld, Formular } from "@/components/formular";
 import { Icd10Auswahl } from "@/components/icd10-auswahl";
 import { KiAufnahme } from "@/components/ki-aufnahme";
 import { BezahltAbzeichen, NotenStatus } from "@/components/noten-status";
+import { Seitenkopf } from "@/components/seitenkopf";
 import { KassierenKnopf, TerminalZahlung } from "@/components/sumup-zahlung";
+import { Zeichen } from "@/components/zeichen";
 import {
   DOKU_ART,
   datumIso,
@@ -76,24 +78,30 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <Link href="/patienten" className="text-muted text-sm hover:underline">
-            ← Patienten
-          </Link>
-          <h1 className="font-semibold text-3xl tracking-tight">
+      <Seitenkopf
+        zurueck={{ href: "/patienten", text: "Patienten" }}
+        titel={
+          <span className="flex flex-wrap items-center gap-3">
             {p.vorname} {p.nachname}
-          </h1>
-          <p className="text-muted text-sm">
+            {p.status !== "aktiv" && (
+              <span className="abzeichen bg-zinc-200 font-medium text-sm text-zinc-700 tracking-normal dark:bg-zinc-800 dark:text-zinc-300">
+                {p.status === "pausiert"
+                  ? "Pausiert"
+                  : `Abgeschlossen am ${formatDatum(p.behandlungsende)}`}
+              </span>
+            )}
+          </span>
+        }
+        untertitel={
+          <>
             geb. {formatDatum(p.geburtsdatum)} · {TRAEGER[p.versicherungstraeger]}
             {p.svNummer && ` · SV ${p.svNummer}`} · {p.sitzungen}{" "}
             {p.sitzungen === 1 ? "Sitzung" : "Sitzungen"}
-            {p.status !== "aktiv" &&
-              ` · ${p.status === "pausiert" ? "pausiert" : `abgeschlossen am ${formatDatum(p.behandlungsende)}`}`}
-          </p>
-        </div>
+          </>
+        }
+      >
         {darfAkte && (
-          <div className="flex flex-wrap gap-2">
+          <>
             <Link href={`/patienten/${p.id}/bearbeiten`} className="knopf-zweit">
               Bearbeiten
             </Link>
@@ -111,15 +119,18 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                 text="Wieder aktivieren"
               />
             )}
-          </div>
+          </>
         )}
-      </header>
+      </Seitenkopf>
 
       {p.hinweise.length > 0 && (
-        <div className="flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 text-sm dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          {p.hinweise.map((h) => (
-            <span key={h.art}>{hinweisText(h)}</span>
-          ))}
+        <div className="hinweis-box" role="note">
+          <Zeichen name="hinweis" className="mt-0.5 size-4" />
+          <div className="flex flex-col gap-1">
+            {p.hinweise.map((h) => (
+              <span key={h.art}>{hinweisText(h)}</span>
+            ))}
+          </div>
         </div>
       )}
 
@@ -127,7 +138,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
         <div className="flex flex-col gap-6">
           {darfAkte && (
             <section className="karte flex flex-col gap-4">
-              <h2 className="font-semibold">Dokumentation</h2>
+              <h2 className="karten-titel">Dokumentation</h2>
               <Formular aktion={dokuAnlegen} knopf="Eintrag speichern" zuruecksetzen>
                 <input type="hidden" name="patientId" value={p.id} />
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -179,14 +190,17 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
                   />
                 </label>
               </Formular>
-              <nav className="flex flex-wrap gap-1 border-line border-b" aria-label="Einträge">
+              <nav
+                className="flex gap-1 overflow-x-auto border-line border-b"
+                aria-label="Einträge"
+              >
                 {(Object.keys(DOKU_ANSICHTEN) as DokuAnsicht[]).map((a) => (
                   <Link
                     key={a}
                     href={`/patienten/${p.id}?doku=${a}`}
                     scroll={false}
                     aria-current={a === ansicht ? "page" : undefined}
-                    className={`-mb-px border-b-2 px-3 py-2 font-medium text-sm ${
+                    className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 font-medium text-sm ${
                       a === ansicht
                         ? "border-foreground text-foreground"
                         : "border-transparent text-muted hover:text-foreground"
@@ -264,7 +278,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
 
           <section className="karte flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Termine</h2>
+              <h2 className="karten-titel">Termine</h2>
               <Link href={`/kalender?patient=${p.id}`} className="verweis text-sm">
                 Termin vereinbaren
               </Link>
@@ -276,7 +290,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
 
         <div className="flex flex-col gap-6">
           <section className="karte flex flex-col gap-4">
-            <h2 className="font-semibold">Honorarnote ausstellen</h2>
+            <h2 className="karten-titel">Honorarnote ausstellen</h2>
             {offen.length === 0 ? (
               <p className="text-muted text-sm">Keine offenen Sitzungen zum Abrechnen.</p>
             ) : (
@@ -342,7 +356,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
 
           {darfAkte && (
             <section className="karte flex flex-col gap-4">
-              <h2 className="font-semibold">Kostenzuschuss und Einwilligung</h2>
+              <h2 className="karten-titel">Kostenzuschuss und Einwilligung</h2>
               <Formular
                 aktion={bestaetigungenSpeichern}
                 knopf="Speichern"
@@ -385,7 +399,7 @@ export default async function PatientAkte({ params, searchParams }: PageProps<"/
           )}
 
           <section className="karte flex flex-col gap-4">
-            <h2 className="font-semibold">Aufgaben</h2>
+            <h2 className="karten-titel">Aufgaben</h2>
             <ul className="flex flex-col gap-2 text-sm">
               {aufgaben.map((a) => (
                 <li key={a.id} className="flex items-center gap-2">

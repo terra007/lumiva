@@ -1,6 +1,7 @@
 import { KENNZAHLEN_ZEITRAEUME, type KennzahlenZeitraum } from "@lumiva/domain";
 import Link from "next/link";
 import { Kennzahl } from "@/components/kennzahl";
+import { Seitenkopf } from "@/components/seitenkopf";
 import { euro } from "@/lib/format";
 import { praxisApi } from "@/server/lumiva";
 
@@ -32,24 +33,19 @@ export default async function Kennzahlen({ searchParams }: PageProps<"/kennzahle
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="font-semibold text-3xl tracking-tight">Kennzahlen</h1>
-          <p className="text-muted text-sm">{k.zeitraum.bezeichnung}</p>
-        </div>
-        <nav className="flex flex-wrap gap-1 text-sm" aria-label="Zeitraum">
+      <Seitenkopf titel="Kennzahlen" untertitel={k.zeitraum.bezeichnung}>
+        <nav className="reiter" aria-label="Zeitraum">
           {KENNZAHLEN_ZEITRAEUME.map((z) => (
             <Link
               key={z}
               href={`/kennzahlen?zeitraum=${z}`}
               aria-current={z === art ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 ${z === art ? "bg-akzent/15 font-medium" : "text-muted hover:bg-line/50 hover:text-foreground"}`}
             >
               {ZEITRAUM_TEXT[z]}
             </Link>
           ))}
         </nav>
-      </header>
+      </Seitenkopf>
 
       <Abschnitt titel="Sitzungen">
         <Kennzahl
@@ -136,7 +132,7 @@ export default async function Kennzahlen({ searchParams }: PageProps<"/kennzahle
       </Abschnitt>
 
       <section className="karte flex flex-col gap-4">
-        <h2 className="font-semibold">Erledigte Sitzungen der letzten 12 Monate</h2>
+        <h2 className="karten-titel">Erledigte Sitzungen der letzten 12 Monate</h2>
         <div className="flex h-44 items-end gap-0.5 border-line border-b">
           {k.verlauf.map((v) => (
             <div
@@ -183,7 +179,7 @@ function Abschnitt({ titel, children }: { titel: string; children: React.ReactNo
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-semibold text-muted text-sm uppercase tracking-wide">{titel}</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">{children}</div>
     </section>
   );
 }

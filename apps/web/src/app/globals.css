@@ -2,20 +2,30 @@
 
 /* LUMIVA-Farben: warmes Licht auf ruhigem Grund */
 :root {
+  color-scheme: light;
   --background: #fbfaf7;
   --foreground: #1d2330;
   --muted: #5b6474;
   --line: #e4e1d8;
   --akzent: #d9a441;
+  /* Akzent als Schrift: dunkler, damit er auf hellem Grund lesbar bleibt (WCAG AA). */
+  --akzent-text: #8a5a00;
+  --flaeche: #ffffff;
+  --leiste: #f4f2ec;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Datumsfelder, Auswahllisten und Bildlaufleisten im dunklen Stil des Browsers. */
+    color-scheme: dark;
     --background: #12151c;
     --foreground: #eceae4;
     --muted: #a3aab6;
     --line: #2a2f3a;
     --akzent: #e8b95c;
+    --akzent-text: #f0c978;
+    --flaeche: #181c24;
+    --leiste: #0e1116;
   }
 }
 
@@ -25,6 +35,9 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-akzent: var(--akzent);
+  --color-akzent-text: var(--akzent-text);
+  --color-flaeche: var(--flaeche);
+  --color-leiste: var(--leiste);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -32,31 +45,80 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  /* Nichts darf die Seite am Handy seitlich verschiebbar machen. */
+  overflow-x: clip;
+}
+
+/* Sichtbarer Fokus für die Bedienung mit der Tastatur, überall gleich. */
+:where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/*
+ * Datum und Uhrzeit: Safari auf iOS gibt diesen Feldern eine feste Mindestbreite und zentriert
+ * den Wert, dadurch ragen sie in schmalen Spalten aus der Karte.
+ */
+.eingabe:is([type="date"], [type="time"], [type="datetime-local"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+}
+.eingabe::-webkit-date-and-time-value {
+  min-height: 1.5em;
+  text-align: left;
 }
 
 @layer components {
   .karte {
-    @apply rounded-xl border border-line bg-white/60 p-5 dark:bg-white/[0.03];
+    @apply rounded-2xl border border-line bg-flaeche p-5 shadow-[0_1px_2px_rgb(29_35_48/0.04)];
   }
   .knopf {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 font-medium text-background text-sm transition hover:opacity-90 disabled:opacity-50;
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 font-medium text-background text-sm shadow-sm transition hover:opacity-90 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
   }
   .knopf-zweit {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-1.5 font-medium text-sm transition hover:bg-line/50 disabled:opacity-50;
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-line bg-flaeche px-3 py-1.5 font-medium text-sm transition hover:border-muted/40 hover:bg-line/40 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
   }
   .knopf-gefahr {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 px-3 py-1.5 font-medium text-red-700 text-sm transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950;
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-200 bg-flaeche px-3 py-1.5 font-medium text-red-700 text-sm transition hover:bg-red-50 active:scale-[0.98] dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950;
+  }
+  /* Knopf nur mit Symbol, z. B. Woche vor und zurück. */
+  .knopf-symbol {
+    @apply inline-flex size-9 items-center justify-center rounded-lg border border-line bg-flaeche text-muted transition hover:bg-line/40 hover:text-foreground;
   }
   .eingabe {
-    @apply w-full rounded-lg border border-line bg-background px-3 py-2 text-sm outline-none focus:border-akzent focus:ring-2 focus:ring-akzent/30;
+    /* Am Handy 16px: Bei kleinerer Schrift zoomt Safari beim Antippen hinein und die Seite springt. */
+    @apply min-h-9 w-full min-w-0 rounded-lg border border-line bg-flaeche px-3 py-2 text-base outline-none md:text-sm transition placeholder:text-muted/70 focus:border-akzent focus:ring-3 focus:ring-akzent/25 disabled:bg-line/30 disabled:text-muted;
   }
   .etikett {
-    @apply flex flex-col gap-1 font-medium text-sm;
+    @apply flex min-w-0 flex-col gap-1.5 font-medium text-sm;
   }
   .abzeichen {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 font-medium text-xs;
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 font-medium text-xs;
   }
   .verweis {
-    @apply underline decoration-line underline-offset-4 hover:decoration-akzent;
+    @apply underline decoration-line underline-offset-4 transition hover:decoration-akzent;
+  }
+  /* Überschrift einer Karte: etwas kleiner als die Seitenüberschrift. */
+  .karten-titel {
+    @apply font-semibold text-base tracking-tight;
+  }
+  /* Umschalter wie „Aktiv · Pausiert · Alle“ oder Zeiträume. */
+  .reiter {
+    @apply inline-flex flex-wrap gap-1 rounded-xl border border-line bg-leiste p-1 text-sm;
+  }
+  .reiter > a {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-muted transition hover:text-foreground;
+  }
+  .reiter > a[aria-current="page"] {
+    @apply bg-flaeche font-medium text-foreground shadow-sm;
+  }
+  .hinweis-box {
+    @apply flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200;
+  }
+  .leer {
+    @apply flex flex-col items-center gap-2 rounded-2xl border border-line border-dashed px-6 py-10 text-center text-muted text-sm;
   }
 }

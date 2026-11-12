@@ -43,5 +43,6 @@ describe("Migration 0006: Anschrift getrennt", () => {
       { name: "C", strasse: "", plz: "1020", ort: "Wien" },
       { name: "D", strasse: "irgendwo", plz: "", ort: "" },
     ]);
-  });
+    // Frische PGlite-Datenbank und alle Migrationen zweimal: auf langsamen CI-Rechnern über 5 s.
+  }, 30_000);
 });

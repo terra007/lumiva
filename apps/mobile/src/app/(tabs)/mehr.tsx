@@ -1,6 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { Karte, Knopf, Seite } from "@/components/ui";
+import { Karte, Knopf, Seite, Trenner } from "@/components/ui";
+import { Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { apiUrl } from "@/lib/api-url";
 import { authClient } from "@/lib/auth";
 import { useTRPC } from "@/lib/trpc";
@@ -11,32 +14,69 @@ const ROLLEN: Record<string, string> = {
   assistenz: "Assistenz",
 };
 
+/** Anfangsbuchstaben ohne Titel wie „Mag.“ oder „Dr.“. */
+function initialen(name: string): string {
+  const teile = name.split(/\s+/).filter((t) => t && !t.endsWith("."));
+  return (
+    (teile[0]?.[0] ?? "") + (teile.length > 1 ? (teile.at(-1)?.[0] ?? "") : "")
+  ).toUpperCase();
+}
+
 export default function Mehr() {
   const trpc = useTRPC();
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const ich = useQuery(trpc.praxis.ich.queryOptions());
   const praxis = ich.data?.praxis;
+  const name = ich.data?.benutzer?.name;
 
   return (
     <Seite titel="Mehr">
       <Karte>
-        <ThemedText type="subtitle">{ich.data?.benutzer?.name ?? "…"}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {ich.data?.benutzer?.email}
-        </ThemedText>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.three }}>
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: theme.akzentFlaeche,
+            }}
+          >
+            <ThemedText type="smallBold" themeColor="akzentText">
+              {name ? initialen(name) : "…"}
+            </ThemedText>
+          </View>
+          <View style={{ flex: 1, gap: Spacing.half }}>
+            <ThemedText style={{ fontWeight: "600" }}>{name ?? "…"}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {ich.data?.benutzer?.email}
+            </ThemedText>
+          </View>
+        </View>
         {praxis && (
-          <ThemedText type="small">
-            {praxis.name} · {ROLLEN[praxis.rolle] ?? praxis.rolle}
-          </ThemedText>
+          <>
+            <Trenner />
+            <ThemedText type="small">
+              {praxis.name} · {ROLLEN[praxis.rolle] ?? praxis.rolle}
+            </ThemedText>
+          </>
         )}
       </Karte>
       <Karte>
-        <ThemedText type="label">Server</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {apiUrl()}
+        <ThemedText type="label" themeColor="textSecondary">
+          In der Web-App
         </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Kalender, Honorarnoten und Einstellungen findest du in der Web-App.
+        <ThemedText type="small">
+          Kalender, Honorarnoten, Dokumentation und Einstellungen findest du in der Web-App.
+        </ThemedText>
+        <Trenner />
+        <ThemedText type="label" themeColor="textSecondary">
+          Server
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" selectable>
+          {apiUrl()}
         </ThemedText>
       </Karte>
       <Knopf

@@ -10,6 +10,19 @@ export const Colors = {
     akzent: "#D9A441",
     gefahr: "#B42318",
     hinweis: "#92400E",
+    // Karten heben sich weiß vom warmen Grund ab, wie in der Web-App.
+    flaeche: "#FFFFFF",
+    akzentText: "#8A5A00",
+    akzentFlaeche: "#F7EBD0",
+    // Abzeichen für den Stand eines Termins: Grund und Schrift.
+    geplantFlaeche: "#E0F2FE",
+    geplantText: "#0C4A6E",
+    erledigtFlaeche: "#D1FAE5",
+    erledigtText: "#064E3B",
+    ausgefallenFlaeche: "#E4E4E7",
+    ausgefallenText: "#3F3F46",
+    hinweisFlaeche: "#FEF3C7",
+    gefahrFlaeche: "#FEE2E2",
   },
   dark: {
     text: "#ECEAE4",
@@ -20,6 +33,17 @@ export const Colors = {
     akzent: "#E8B95C",
     gefahr: "#FCA5A5",
     hinweis: "#FCD34D",
+    flaeche: "#181C24",
+    akzentText: "#F0C978",
+    akzentFlaeche: "#3A2F17",
+    geplantFlaeche: "#082F49",
+    geplantText: "#BAE6FD",
+    erledigtFlaeche: "#022C22",
+    erledigtText: "#A7F3D0",
+    ausgefallenFlaeche: "#27272A",
+    ausgefallenText: "#D4D4D8",
+    hinweisFlaeche: "#451A03",
+    gefahrFlaeche: "#450A0A",
   },
 } as const;
 
