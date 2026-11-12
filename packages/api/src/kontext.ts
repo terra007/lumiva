@@ -17,6 +17,16 @@ export async function kontextErstellen(opts: {
     return { db, benutzer: null, praxis: null, zweiFaktorFehlt: false, hauptschluessel };
 
   const benutzer = { id: sitzung.user.id, name: sitzung.user.name, email: sitzung.user.email };
+  const seit = sitzung.user.zweiFaktorSeit;
+  // Eine Sitzung von vor der Einrichtung hat den zweiten Faktor nie durchlaufen: abmelden.
+  if (
+    sitzung.user.twoFactorEnabled &&
+    seit &&
+    new Date(sitzung.session.createdAt) < new Date(seit)
+  ) {
+    await db.delete(schema.session).where(eq(schema.session.id, sitzung.session.id));
+    return { db, benutzer: null, praxis: null, zweiFaktorFehlt: false, hauptschluessel };
+  }
   const zweiFaktorFehlt = !sitzung.user.twoFactorEnabled;
   // Ohne zweiten Faktor wird der Datenschlüssel der Praxis gar nicht erst entpackt.
   if (zweiFaktorFehlt) return { db, benutzer, praxis: null, zweiFaktorFehlt, hauptschluessel };

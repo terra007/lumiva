@@ -1,5 +1,5 @@
 {
-  "id": "a3572249-a1b8-4f1b-8867-572d83f298ed",
+  "id": "07883c9f-c903-43bb-ad8f-9938b6f3568d",
   "prevId": "2dc87134-213b-4c5e-b6e5-65582c0017b9",
   "version": "7",
   "dialect": "postgresql",
@@ -1734,6 +1734,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "zwei_faktor_seit": {
+          "name": "zwei_faktor_seit",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

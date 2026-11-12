@@ -27,6 +27,25 @@ export function authErstellen({ db, secret, baseURL, vertrauteHerkuenfte = [] }:
       },
     }),
     emailAndPassword: { enabled: true, minPasswordLength: 10 },
+    user: {
+      additionalFields: {
+        zweiFaktorSeit: { type: "date", required: false, input: false },
+      },
+    },
+    databaseHooks: {
+      user: {
+        update: {
+          // Zeitpunkt der Einrichtung merken: Sitzungen, die nur mit Passwort entstanden sind,
+          // bekommen damit auch nach der Einrichtung keinen Zugriff (siehe kontextErstellen).
+          before: async (daten) => {
+            if (!("twoFactorEnabled" in daten)) return;
+            return {
+              data: { ...daten, zweiFaktorSeit: daten.twoFactorEnabled ? new Date() : null },
+            };
+          },
+        },
+      },
+    },
     session: { expiresIn: 60 * 60 * 12, updateAge: 60 * 60 },
     trustedOrigins: ["lumiva://", ...vertrauteHerkuenfte],
     plugins: [

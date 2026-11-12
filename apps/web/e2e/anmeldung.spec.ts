@@ -75,6 +75,31 @@ test("Zwei-Faktor-Anmeldung ist Pflicht und geht auch mit Wiederherstellungscode
   await expect(page).toHaveURL(/\/$/);
 });
 
+test("Sitzung von vor der Einrichtung bekommt danach keinen Zugriff", async ({ page, browser }) => {
+  const email = `alt-${Date.now()}@lumiva.test`;
+  await page.goto("/anmelden");
+  await page.getByRole("button", { name: "Konto erstellen" }).first().click();
+  await page.getByLabel("Name mit Titel").fill("Mag. Alt Test");
+  await page.getByLabel("E-Mail").fill(email);
+  await page.getByLabel("Passwort").fill(PASSWORT);
+  await page.locator("form").getByRole("button", { name: "Konto erstellen" }).click();
+  await expect(page).toHaveURL(/\/zwei-faktor$/);
+
+  // Ein zweites Gerät meldet sich nur mit Passwort an, während der zweite Faktor noch fehlt.
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto("/anmelden");
+  await anderes.getByLabel("E-Mail").fill(email);
+  await anderes.getByLabel("Passwort").fill(PASSWORT);
+  await anderes.locator("form").getByRole("button", { name: "Anmelden" }).click();
+  await expect(anderes).toHaveURL(/\/zwei-faktor$/);
+
+  await zweiFaktorEinrichten(page, email);
+  await expect(page).toHaveURL(/\/einrichten$/);
+
+  await anderes.goto("/patienten");
+  await expect(anderes).toHaveURL(/\/anmelden$/);
+});
+
 test("doppelte Registrierung wird abgelehnt", async ({ page, browser }) => {
   const email = await registrieren(page);
   const neu = await (await browser.newContext()).newPage();

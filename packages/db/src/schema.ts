@@ -400,6 +400,8 @@ export const user = pgTable("user", {
   image: text(),
   /** Zwei-Faktor-Anmeldung (Better-Auth-Plugin twoFactor) eingeschaltet. */
   twoFactorEnabled: boolean().notNull().default(false),
+  /** Wann der zweite Faktor zuletzt eingeschaltet wurde. Ältere Sitzungen gelten nicht mehr. */
+  zweiFaktorSeit: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
