@@ -1,34 +1,9 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { FehlerMeldung } from "@/components/formular";
 import { authClient } from "@/lib/auth-client";
-
-type Fehler = { code?: string; status?: number; message?: string } | null;
-
-function fehlerText(error: NonNullable<Fehler>): string {
-  if (error.status === 429)
-    return "Zu viele Versuche. Bitte warte eine Minute und versuche es dann erneut.";
-  switch (error.code) {
-    case "INVALID_EMAIL_OR_PASSWORD":
-      return "E-Mail oder Passwort stimmt nicht.";
-    case "USER_ALREADY_EXISTS":
-    case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
-      return "Mit dieser E-Mail gibt es schon ein Konto. Bitte melde dich an.";
-    case "PASSWORD_TOO_SHORT":
-      return "Das Passwort braucht mindestens 10 Zeichen.";
-    case "INVALID_CODE":
-    case "INVALID_BACKUP_CODE":
-      return "Der Code stimmt nicht. Bitte prüfe ihn und versuche es erneut.";
-    case "INVALID_TWO_FACTOR_COOKIE":
-    case "TWO_FACTOR_NOT_ENABLED":
-      return "Die Anmeldung ist abgelaufen. Bitte gib E-Mail und Passwort erneut ein.";
-    case "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE":
-    case "ACCOUNT_TEMPORARILY_LOCKED":
-      return "Zu viele falsche Codes. Die Anmeldung ist für 15 Minuten gesperrt.";
-    default:
-      return error.message ?? "Das hat nicht geklappt.";
-  }
-}
+import { authFehlerText } from "@/lib/auth-fehler";
 
 export function AnmeldeFormular() {
   const router = useRouter();
@@ -54,7 +29,7 @@ export function AnmeldeFormular() {
         ? await authClient.signIn.email({ email, password })
         : await authClient.signUp.email({ email, password, name: String(d.get("name")) });
     setLaeuft(false);
-    if (error) return setFehler(fehlerText(error));
+    if (error) return setFehler(authFehlerText(error));
     if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) {
       setModus("code");
       return;
@@ -74,22 +49,13 @@ export function AnmeldeFormular() {
       : await authClient.twoFactor.verifyTotp({ code, trustDevice });
     setLaeuft(false);
     if (error) {
-      setFehler(fehlerText(error));
+      setFehler(authFehlerText(error));
       if (error.code === "INVALID_TWO_FACTOR_COOKIE" || error.code === "TWO_FACTOR_NOT_ENABLED")
         setModus("anmelden");
       return;
     }
     weiter();
   }
-
-  const fehlerBox = fehler && (
-    <p
-      role="alert"
-      className="rounded-lg bg-red-50 px-3 py-2 text-red-800 text-sm dark:bg-red-950 dark:text-red-200"
-    >
-      {fehler}
-    </p>
-  );
 
   if (modus === "code") {
     return (
@@ -120,7 +86,7 @@ export function AnmeldeFormular() {
             <input type="checkbox" name="vertrauen" />
             Diesem Gerät 30 Tage vertrauen (nur auf dem eigenen Gerät)
           </label>
-          {fehlerBox}
+          <FehlerMeldung text={fehler} />
           <button type="submit" className="knopf" disabled={laeuft}>
             {laeuft ? "Einen Moment …" : "Bestätigen"}
           </button>
@@ -197,7 +163,7 @@ export function AnmeldeFormular() {
             <span className="font-normal text-muted text-xs">Mindestens 10 Zeichen.</span>
           )}
         </label>
-        {fehlerBox}
+        <FehlerMeldung text={fehler} />
         <button type="submit" className="knopf" disabled={laeuft}>
           {laeuft ? "Einen Moment …" : modus === "anmelden" ? "Anmelden" : "Konto erstellen"}
         </button>

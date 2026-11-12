@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ThemedText } from "@/components/themed-text";
-import { authClient } from "@/lib/auth";
+import { abmelden } from "@/lib/auth";
 import { Karte, Knopf, Seite } from "./ui";
 
 /**
@@ -20,14 +20,7 @@ export function ZweiFaktorFehlt() {
           Melde dich am Computer in der Web-App von LUMIVA an. Dort führt dich LUMIVA durch die
           Einrichtung. Danach meldest du dich hier erneut an.
         </ThemedText>
-        <Knopf
-          text="Abmelden"
-          art="zweit"
-          onPress={async () => {
-            await authClient.signOut();
-            queryClient.clear();
-          }}
-        />
+        <Knopf text="Abmelden" art="zweit" onPress={() => abmelden(queryClient)} />
       </Karte>
     </Seite>
   );

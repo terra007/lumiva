@@ -22,9 +22,6 @@ export function neueEmail(): string {
   return `test-${Date.now()}-${++zaehler}@lumiva.test`;
 }
 
-/** TOTP-Geheimnis je E-Mail, damit Tests sich erneut anmelden können. */
-export const geheimnisse = new Map<string, string>();
-
 /** Aktueller 6-stelliger Code wie in einer Authenticator-App (RFC 6238, SHA-1, 30 s). */
 export function totp(geheimnis: string, zeit = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -40,30 +37,36 @@ export function totp(geheimnis: string, zeit = Date.now()): string {
 }
 
 /** Pflichtschritt nach der ersten Anmeldung: Authenticator einrichten, Codes bestätigen. */
-export async function zweiFaktorEinrichten(page: Page, email: string) {
-  await expect(page).toHaveURL(/\/zwei-faktor$/);
+export async function zweiFaktorEinrichten(page: Page) {
   await page.getByLabel("Zur Bestätigung dein Passwort").fill(PASSWORT);
   await page.getByRole("button", { name: "Weiter" }).click();
   const geheimnis = (await page.locator("code").first().textContent()) ?? "";
-  geheimnisse.set(email, geheimnis);
   await page.getByLabel("Den 6-stelligen Code aus der App eingeben").fill(totp(geheimnis));
   await page.getByRole("button", { name: "Bestätigen und einschalten" }).click();
   await expect(page.getByText("Wiederherstellungscodes:")).toBeVisible();
   const codes = await page.locator("ul li").allTextContents();
   await page.getByRole("button", { name: "Ich habe die Codes gesichert" }).click();
-  return codes;
+  return { geheimnis, codes };
 }
 
-export async function registrieren(page: Page, name = "Mag. Maria Muster", email = neueEmail()) {
+/** Konto anlegen; danach steht man auf der Pflichtseite für den zweiten Faktor. */
+export async function kontoErstellen(page: Page, name = "Mag. Maria Muster", email = neueEmail()) {
   await page.goto("/anmelden");
   await page.getByRole("button", { name: "Konto erstellen" }).first().click();
   await page.getByLabel("Name mit Titel").fill(name);
   await page.getByLabel("E-Mail").fill(email);
   await page.getByLabel("Passwort").fill(PASSWORT);
   await page.locator("form").getByRole("button", { name: "Konto erstellen" }).click();
-  await zweiFaktorEinrichten(page, email);
-  await expect(page).toHaveURL(/\/einrichten$/);
+  await expect(page).toHaveURL(/\/zwei-faktor$/);
   return email;
+}
+
+/** Konto mit zweitem Faktor, angemeldet, noch ohne Praxis. */
+export async function registrieren(page: Page, name?: string, email?: string) {
+  const adresse = await kontoErstellen(page, name, email);
+  const { geheimnis } = await zweiFaktorEinrichten(page);
+  await expect(page).toHaveURL(/\/einrichten$/);
+  return { email: adresse, geheimnis };
 }
 
 export async function praxisAnlegen(page: Page, name = "Praxis Muster") {
@@ -78,7 +81,7 @@ export async function praxisAnlegen(page: Page, name = "Praxis Muster") {
 
 /** Neues Konto mit Praxis, angemeldet. */
 export async function neuePraxis(page: Page) {
-  const email = await registrieren(page);
+  const { email } = await registrieren(page);
   await praxisAnlegen(page);
   return email;
 }

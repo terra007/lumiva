@@ -1,13 +1,14 @@
 "use client";
 import { useRouter } from "next/navigation";
-import QRCode from "qrcode";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { FehlerMeldung } from "@/components/formular";
 import { authClient } from "@/lib/auth-client";
+import { authFehlerText } from "@/lib/auth-fehler";
 
 type Schritt =
   | { art: "ruhe" }
   | { art: "passwort"; ziel: "einschalten" | "neu" | "codes" }
-  | { art: "scannen"; uri: string; codes: string[] }
+  | { art: "scannen"; uri: string; qr: string | null; codes: string[] }
   | { art: "codes"; codes: string[] };
 
 /** Geheimnis aus der otpauth-Adresse, zum Abtippen, wenn die Kamera nicht geht. */
@@ -16,10 +17,14 @@ function geheimnisAus(uri: string): string {
   return s.replace(/(.{4})/g, "$1 ").trim();
 }
 
-function fehlerText(code?: string, message?: string): string {
-  if (code === "INVALID_PASSWORD") return "Das Passwort stimmt nicht.";
-  if (code === "INVALID_CODE") return "Der Code stimmt nicht. Bitte prüfe die Uhrzeit am Handy.";
-  return message ?? "Das hat nicht geklappt.";
+/** QR-Code als SVG. Die Bibliothek wird erst geladen, wenn er gebraucht wird. */
+async function qrSvg(uri: string): Promise<string | null> {
+  try {
+    const QRCode = (await import("qrcode")).default;
+    return await QRCode.toString(uri, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -28,22 +33,13 @@ function fehlerText(code?: string, message?: string): string {
  */
 export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
   const router = useRouter();
-  const { data: sitzung, refetch } = authClient.useSession();
-  const aktiv = Boolean(sitzung?.user.twoFactorEnabled);
+  // In den Einstellungen ist der zweite Faktor immer an: ohne ihn gäbe es die Seite nicht.
+  const [aktiv, setAktiv] = useState(!pflicht);
   const [schritt, setSchritt] = useState<Schritt>(
     pflicht ? { art: "passwort", ziel: "einschalten" } : { art: "ruhe" },
   );
-  const [qr, setQr] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
-
-  const uri = schritt.art === "scannen" ? schritt.uri : null;
-  useEffect(() => {
-    if (!uri) return setQr(null);
-    QRCode.toString(uri, { type: "svg", margin: 1, errorCorrectionLevel: "M" }).then(setQr, () =>
-      setFehler("Der QR-Code ließ sich nicht anzeigen. Tippe den Schlüssel darunter ab."),
-    );
-  }, [uri]);
 
   async function mitPasswort(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,7 +50,7 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
     if (schritt.ziel === "codes") {
       const { data, error } = await authClient.twoFactor.generateBackupCodes({ password });
       setLaeuft(false);
-      if (error) return setFehler(fehlerText(error.code, error.message));
+      if (error) return setFehler(authFehlerText(error));
       if (data) setSchritt({ art: "codes", codes: data.backupCodes });
       return;
     }
@@ -63,16 +59,23 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
       const { error } = await authClient.twoFactor.disable({ password });
       if (error) {
         setLaeuft(false);
-        return setFehler(fehlerText(error.code, error.message));
+        return setFehler(authFehlerText(error));
       }
       // Der alte Faktor ist weg: Scheitert der nächste Schritt, nur noch neu einschalten.
+      setAktiv(false);
       setSchritt({ art: "passwort", ziel: "einschalten" });
     }
     const { data, error } = await authClient.twoFactor.enable({ password, issuer: "LUMIVA" });
+    if (error) {
+      setLaeuft(false);
+      return setFehler(authFehlerText(error));
+    }
+    if (data && "totpURI" in data) {
+      const qr = await qrSvg(data.totpURI);
+      if (!qr) setFehler("Der QR-Code ließ sich nicht anzeigen. Tippe den Schlüssel darunter ab.");
+      setSchritt({ art: "scannen", uri: data.totpURI, qr, codes: data.backupCodes });
+    }
     setLaeuft(false);
-    if (error) return setFehler(fehlerText(error.code, error.message));
-    if (data && "totpURI" in data)
-      setSchritt({ art: "scannen", uri: data.totpURI, codes: data.backupCodes });
   }
 
   async function bestaetigen(e: React.FormEvent<HTMLFormElement>) {
@@ -83,19 +86,11 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
     const code = String(new FormData(e.currentTarget).get("code")).replace(/\s/g, "");
     const { error } = await authClient.twoFactor.verifyTotp({ code });
     setLaeuft(false);
-    if (error) return setFehler(fehlerText(error.code, error.message));
+    if (error) return setFehler(authFehlerText(error));
+    setAktiv(true);
     setSchritt({ art: "codes", codes: schritt.codes });
-    refetch();
   }
 
-  const fehlerBox = fehler && (
-    <p
-      role="alert"
-      className="rounded-lg bg-red-50 px-3 py-2 text-red-800 text-sm dark:bg-red-950 dark:text-red-200"
-    >
-      {fehler}
-    </p>
-  );
   const abbrechen = !pflicht && (
     <button
       type="button"
@@ -114,7 +109,7 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Zwei-Faktor-Anmeldung</h2>
         <span
-          className={`rounded-full px-2.5 py-0.5 font-medium text-xs ${aktiv ? "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200" : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"}`}
+          className={`abzeichen ${aktiv ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200" : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"}`}
         >
           {aktiv ? "Eingeschaltet" : "Aus"}
         </span>
@@ -168,16 +163,14 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
               autoComplete="current-password"
             />
           </label>
-          {fehlerBox}
+          <FehlerMeldung text={fehler} />
           <div className="flex flex-wrap gap-2">
             <button type="submit" className="knopf" disabled={laeuft}>
               {laeuft
                 ? "Einen Moment …"
-                : schritt.ziel === "einschalten"
-                  ? "Weiter"
-                  : schritt.ziel === "codes"
-                    ? "Neue Codes erzeugen"
-                    : "Weiter"}
+                : schritt.ziel === "codes"
+                  ? "Neue Codes erzeugen"
+                  : "Weiter"}
             </button>
             {abbrechen}
           </div>
@@ -189,13 +182,13 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
           <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">
             <li>
               Den QR-Code mit der Authenticator-App scannen.
-              {qr && (
+              {schritt.qr && (
                 <div
                   role="img"
                   aria-label="QR-Code für die Authenticator-App"
                   className="mt-2 w-48 rounded-lg bg-white p-2"
                   // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG von der qrcode-Bibliothek, aus der eigenen otpauth-Adresse erzeugt.
-                  dangerouslySetInnerHTML={{ __html: qr }}
+                  dangerouslySetInnerHTML={{ __html: schritt.qr }}
                 />
               )}
               <span className="mt-2 block text-muted">
@@ -218,7 +211,7 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
               </label>
             </li>
           </ol>
-          {fehlerBox}
+          <FehlerMeldung text={fehler} />
           <div className="flex flex-wrap gap-2">
             <button type="submit" className="knopf" disabled={laeuft}>
               {laeuft ? "Einen Moment …" : "Bestätigen und einschalten"}

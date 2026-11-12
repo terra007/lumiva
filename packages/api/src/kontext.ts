@@ -12,24 +12,30 @@ export async function kontextErstellen(opts: {
   hauptschluessel: Buffer;
 }): Promise<Kontext> {
   const { db, auth, headers, hauptschluessel } = opts;
+  const abgemeldet: Kontext = {
+    db,
+    hauptschluessel,
+    benutzer: null,
+    praxis: null,
+    zweiFaktorFehlt: false,
+  };
   const sitzung = await auth.api.getSession({ headers });
-  if (!sitzung)
-    return { db, benutzer: null, praxis: null, zweiFaktorFehlt: false, hauptschluessel };
+  if (!sitzung) return abgemeldet;
 
-  const benutzer = { id: sitzung.user.id, name: sitzung.user.name, email: sitzung.user.email };
-  const seit = sitzung.user.zweiFaktorSeit;
+  const { user } = sitzung;
   // Eine Sitzung von vor der Einrichtung hat den zweiten Faktor nie durchlaufen: abmelden.
   if (
-    sitzung.user.twoFactorEnabled &&
-    seit &&
-    new Date(sitzung.session.createdAt) < new Date(seit)
+    user.twoFactorEnabled &&
+    user.zweiFaktorSeit &&
+    sitzung.session.createdAt < user.zweiFaktorSeit
   ) {
     await db.delete(schema.session).where(eq(schema.session.id, sitzung.session.id));
-    return { db, benutzer: null, praxis: null, zweiFaktorFehlt: false, hauptschluessel };
+    return abgemeldet;
   }
-  const zweiFaktorFehlt = !sitzung.user.twoFactorEnabled;
+  const benutzer = { id: user.id, name: user.name, email: user.email };
+  const ohnePraxis: Kontext = { ...abgemeldet, benutzer, zweiFaktorFehlt: !user.twoFactorEnabled };
   // Ohne zweiten Faktor wird der Datenschlüssel der Praxis gar nicht erst entpackt.
-  if (zweiFaktorFehlt) return { db, benutzer, praxis: null, zweiFaktorFehlt, hauptschluessel };
+  if (ohnePraxis.zweiFaktorFehlt) return ohnePraxis;
   const [zeile] = await db
     .select({
       id: schema.praxen.id,
@@ -42,12 +48,9 @@ export async function kontextErstellen(opts: {
     .where(eq(schema.mitgliedschaften.benutzerId, benutzer.id))
     .limit(1);
 
-  if (!zeile) return { db, benutzer, praxis: null, zweiFaktorFehlt, hauptschluessel };
+  if (!zeile) return ohnePraxis;
   return {
-    db,
-    benutzer,
-    hauptschluessel,
-    zweiFaktorFehlt,
+    ...ohnePraxis,
     praxis: {
       id: zeile.id,
       name: zeile.name,

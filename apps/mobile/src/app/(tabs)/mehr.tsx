@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ThemedText } from "@/components/themed-text";
 import { Karte, Knopf, Seite } from "@/components/ui";
 import { apiUrl } from "@/lib/api-url";
-import { authClient } from "@/lib/auth";
+import { abmelden } from "@/lib/auth";
 import { useTRPC } from "@/lib/trpc";
 
 const ROLLEN: Record<string, string> = {
@@ -39,14 +39,7 @@ export default function Mehr() {
           Kalender, Honorarnoten und Einstellungen findest du in der Web-App.
         </ThemedText>
       </Karte>
-      <Knopf
-        text="Abmelden"
-        art="zweit"
-        onPress={async () => {
-          await authClient.signOut();
-          queryClient.clear();
-        }}
-      />
+      <Knopf text="Abmelden" art="zweit" onPress={() => abmelden(queryClient)} />
       <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: "center" }}>
         LUMIVA · Klarheit für deine Praxis.
       </ThemedText>
