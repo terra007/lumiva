@@ -40,7 +40,9 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
   const uri = schritt.art === "scannen" ? schritt.uri : null;
   useEffect(() => {
     if (!uri) return setQr(null);
-    QRCode.toString(uri, { type: "svg", margin: 1, errorCorrectionLevel: "M" }).then(setQr);
+    QRCode.toString(uri, { type: "svg", margin: 1, errorCorrectionLevel: "M" }).then(setQr, () =>
+      setFehler("Der QR-Code ließ sich nicht anzeigen. Tippe den Schlüssel darunter ab."),
+    );
   }, [uri]);
 
   async function mitPasswort(e: React.FormEvent<HTMLFormElement>) {
@@ -63,6 +65,8 @@ export function ZweiFaktor({ pflicht = false }: { pflicht?: boolean }) {
         setLaeuft(false);
         return setFehler(fehlerText(error.code, error.message));
       }
+      // Der alte Faktor ist weg: Scheitert der nächste Schritt, nur noch neu einschalten.
+      setSchritt({ art: "passwort", ziel: "einschalten" });
     }
     const { data, error } = await authClient.twoFactor.enable({ password, issuer: "LUMIVA" });
     setLaeuft(false);

@@ -49,6 +49,8 @@ export function Anmelden() {
     if (!error) return;
     if (error.code === "INVALID_TWO_FACTOR_COOKIE") {
       setCodeSchritt(false);
+      setErsatzcode(false);
+      setCode("");
       return setFehler("Die Anmeldung ist abgelaufen. Bitte melde dich erneut an.");
     }
     setFehler(
