@@ -5,6 +5,7 @@ import { useColorScheme } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Anmelden } from "@/components/anmelden";
 import { Laden } from "@/components/ui";
+import { ZweiFaktorFehlt } from "@/components/zwei-faktor-fehlt";
 import { authClient } from "@/lib/auth";
 import { ApiProvider } from "@/lib/trpc";
 
@@ -25,6 +26,8 @@ export default function Wurzel() {
             <Laden />
           ) : !sitzung ? (
             <Anmelden />
+          ) : !sitzung.user.twoFactorEnabled ? (
+            <ZweiFaktorFehlt />
           ) : (
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

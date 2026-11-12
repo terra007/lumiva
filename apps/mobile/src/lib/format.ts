@@ -30,7 +30,9 @@ export function hinweisText(h: { art: string; verbleibendeSitzungen?: number }):
 
 /** Verständliche Meldung für Fehler der API. */
 export function fehlerText(e: unknown): string {
-  const code = (e as { data?: { code?: string } })?.data?.code;
+  const daten = (e as { data?: { code?: string; zweiFaktorFehlt?: boolean } })?.data;
+  if (daten?.zweiFaktorFehlt) return "Richte zuerst die Zwei-Faktor-Anmeldung in der Web-App ein.";
+  const code = daten?.code;
   if (code === "PRECONDITION_FAILED") return "Richte zuerst deine Praxis in der Web-App ein.";
   if (code === "UNAUTHORIZED") return "Bitte melde dich erneut an.";
   if (e instanceof Error && /fetch|network/i.test(e.message))

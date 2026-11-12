@@ -20,9 +20,14 @@ export type Kontext = {
   db: Datenbank;
   benutzer: { id: string; name: string; email: string } | null;
   praxis: PraxisZugang | null;
+  /** Angemeldet, aber noch ohne Zwei-Faktor-Anmeldung: Zugriff nur auf deren Einrichtung. */
+  zweiFaktorFehlt: boolean;
   /** Hauptschlüssel des Servers, nur zum Anlegen neuer Praxen. */
   hauptschluessel: Buffer;
 };
+
+/** Markiert den Fehler „Zwei-Faktor-Anmeldung fehlt“, damit Web und App auf die Einrichtung leiten. */
+export class ZweiFaktorFehlt extends Error {}
 
 const t = initTRPC.context<Kontext>().create({
   transformer: superjson,
@@ -36,6 +41,7 @@ const t = initTRPC.context<Kontext>().create({
         stack: intern ? undefined : shape.data.stack,
         // Nur Feldnamen und Meldungen, nie die eingegebenen Werte zurückgeben.
         felder: error.cause instanceof ZodError ? error.cause.flatten().fieldErrors : null,
+        zweiFaktorFehlt: error.cause instanceof ZweiFaktorFehlt,
       },
     };
   },
@@ -60,8 +66,19 @@ export const router = t.router;
 export const createCallerFactory = t.createCallerFactory;
 export const oeffentlich = t.procedure;
 
+/**
+ * Angemeldet und mit zweitem Faktor. Die Zwei-Faktor-Anmeldung ist für alle Konten Pflicht:
+ * Gesundheitsdaten verlangen einen dem Risiko angemessenen Zugangsschutz (Art. 32 DSGVO).
+ */
 export const angemeldet = t.procedure.use(({ ctx, next }) => {
   if (!ctx.benutzer) throw new TRPCError({ code: "UNAUTHORIZED", message: "Bitte melde dich an." });
+  if (ctx.zweiFaktorFehlt) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Richte zuerst die Zwei-Faktor-Anmeldung ein.",
+      cause: new ZweiFaktorFehlt(),
+    });
+  }
   return next({ ctx: { ...ctx, benutzer: ctx.benutzer } });
 });
 

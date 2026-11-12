@@ -57,6 +57,13 @@
       "when": 1794251781394,
       "tag": "0007_anschrift_spalte_entfernen",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794518840211,
+      "tag": "0008_zwei_faktor",
+      "breakpoints": true
     }
   ]
 }
