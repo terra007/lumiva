@@ -1,38 +1,63 @@
 # LUMIVA auf einem eigenen Server (z. B. IONOS Cloud Server, Ubuntu 24.04).
 # Alles läuft auf diesem einen Server; nach außen offen ist nur Caddy (HTTPS, Port 80/443).
 # Anleitung: deploy/ionos/README.md
+#
+# Die KI (whisper, ollama) läuft nur mit COMPOSE_PROFILES=ki in der .env. Ohne sie bleiben die
+# KI-Adressen für die Web-App leer, und LUMIVA blendet Diktat und Sitzungsaufnahme aus.
+
+# Logs begrenzen, damit die Platte nicht vollläuft. Gesundheitsdaten stehen nicht in den Logs.
+x-logs: &logs
+  logging:
+    driver: local
+    options:
+      max-size: 10m
+      max-file: "5"
 
 services:
   caddy:
     image: caddy:2.11.9-alpine
     restart: unless-stopped
-    ports: ["80:80", "443:443"]
+    ports: ["80:80", "443:443", "443:443/udp"]
     environment:
-      LUMIVA_DOMAIN: ${LUMIVA_DOMAIN}
+      LUMIVA_DOMAIN: ${LUMIVA_DOMAIN:?LUMIVA_DOMAIN fehlt in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-daten:/data
+      - caddy-konfig:/config
     depends_on: [web]
+    <<: *logs
 
   web:
     build:
       context: ../..
       dockerfile: deploy/ionos/Dockerfile
+    image: lumiva-web
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://lumiva:${POSTGRES_PASSWORT}@datenbank:5432/lumiva
-      LUMIVA_HAUPTSCHLUESSEL: ${LUMIVA_HAUPTSCHLUESSEL}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      DATABASE_URL: postgres://lumiva:${POSTGRES_PASSWORT:?POSTGRES_PASSWORT fehlt in .env}@datenbank:5432/lumiva
+      LUMIVA_HAUPTSCHLUESSEL: ${LUMIVA_HAUPTSCHLUESSEL:?LUMIVA_HAUPTSCHLUESSEL fehlt in .env}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET fehlt in .env}
       BETTER_AUTH_URL: https://${LUMIVA_DOMAIN}
       LUMIVA_HERKUENFTE: https://${LUMIVA_DOMAIN}
-      # KI nur über die beiden Dienste unten, im internen Netz dieses Servers.
-      LUMIVA_KI_TRANSKRIPTION_URL: http://whisper:8000/v1
-      LUMIVA_KI_TRANSKRIPTION_MODELL: ${WHISPER_MODELL}
-      LUMIVA_KI_SPRACHMODELL_URL: http://ollama:11434
-      LUMIVA_KI_SPRACHMODELL: ${SPRACHMODELL}
+      # KI nur über die beiden Dienste unten, im internen Netz dieses Servers. Leer = KI aus.
+      LUMIVA_KI_TRANSKRIPTION_URL: ${COMPOSE_PROFILES:+http://whisper:8000/v1}
+      LUMIVA_KI_TRANSKRIPTION_MODELL: ${WHISPER_MODELL:-}
+      LUMIVA_KI_SPRACHMODELL_URL: ${COMPOSE_PROFILES:+http://ollama:11434}
+      LUMIVA_KI_SPRACHMODELL: ${SPRACHMODELL:-}
     depends_on:
       datenbank:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/anmelden').then((a) => process.exit(a.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    <<: *logs
 
   datenbank:
     image: postgres:18.6-bookworm
@@ -47,23 +72,29 @@ services:
       test: ["CMD-SHELL", "pg_isready -U lumiva"]
       interval: 5s
       retries: 20
+    <<: *logs
 
   # Sprache zu Text (Whisper, frei), OpenAI-kompatible Schnittstelle, ohne Internetzugriff nach dem Modell-Download.
   whisper:
     image: ghcr.io/speaches-ai/speaches:0.8.3-cpu
+    profiles: [ki]
     restart: unless-stopped
     volumes:
       - whisper-modelle:/home/ubuntu/.cache/huggingface/hub
+    <<: *logs
 
   # Freies Sprachmodell für den Doku-Entwurf.
   ollama:
     image: ollama/ollama:0.40.15
+    profiles: [ki]
     restart: unless-stopped
     volumes:
       - ollama-modelle:/root/.ollama
+    <<: *logs
 
 volumes:
   caddy-daten:
+  caddy-konfig:
   datenbank:
   whisper-modelle:
   ollama-modelle:

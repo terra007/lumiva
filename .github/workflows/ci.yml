@@ -34,7 +34,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @lumiva/web exec playwright install --with-deps chromium
+      # Die Systembibliotheken bringt das Runner-Image schon mit. Scheitert apt nur an den
+      # Zusatzschriften (Ubuntu-Spiegel nicht erreichbar), reicht der Browser allein.
+      - run: |
+          pnpm --filter @lumiva/web exec playwright install --with-deps chromium \
+            || pnpm --filter @lumiva/web exec playwright install chromium
       - run: pnpm --filter @lumiva/web e2e
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -42,3 +46,15 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -f deploy/ionos/Dockerfile -t lumiva-web .
+      - name: Compose-Datei prüfen
+        working-directory: deploy/ionos
+        run: |
+          printf 'LUMIVA_DOMAIN=example.at\nPOSTGRES_PASSWORT=abc\nLUMIVA_HAUPTSCHLUESSEL=x\nBETTER_AUTH_SECRET=y\n' > .env
+          docker compose config --quiet
+          COMPOSE_PROFILES=ki docker compose config --quiet
