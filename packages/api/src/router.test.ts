@@ -132,6 +132,7 @@ describe("LUMIVA-API", () => {
     });
     expect(note.nummer).toMatch(/^\d{4}-0001$/);
     expect(await api.honorarnoten.offen({ patientId })).toHaveLength(0);
+    expect(await api.honorarnoten.abrechenbar()).toEqual([]);
 
     const pdf = await api.honorarnoten.pdf({ id: note.id });
     expect(Buffer.from(pdf.base64, "base64").subarray(0, 4).toString()).toBe("%PDF");
@@ -142,6 +143,10 @@ describe("LUMIVA-API", () => {
     ).rejects.toMatchObject({ code: "CONFLICT" });
     await api.honorarnoten.stornieren({ id: note.id });
     expect(await api.honorarnoten.offen({ patientId })).toHaveLength(1);
+    const [abrechenbar, ...weitere] = await api.honorarnoten.abrechenbar();
+    expect(weitere).toEqual([]);
+    expect(abrechenbar).toMatchObject({ patientId, patientName: "Anna Berger", summeCent: 9000 });
+    expect(abrechenbar?.sitzungen.map((t) => t.id)).toEqual([erster?.id]);
 
     // Serien behalten die Wiener Uhrzeit über die Zeitumstellung (25.10.2026).
     await api.termine.anlegen({

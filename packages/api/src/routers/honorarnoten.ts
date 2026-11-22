@@ -27,16 +27,24 @@ import { letzteDiagnose } from "./doku";
 
 type Ctx = Parameters<typeof patientLaden>[0];
 
-/** Erledigte oder ausgefallene Termine mit Honorar, die auf keiner gültigen Honorarnote stehen. */
-async function offeneTermine(ctx: Ctx, patientId: string, db: Ctx["db"] = ctx.db) {
+/**
+ * Erledigte oder ausgefallene Termine mit Honorar, die auf keiner gültigen Honorarnote stehen.
+ * Ohne `patientId` über alle Patienten, die der Benutzer sehen darf.
+ */
+async function offeneTermine(ctx: Ctx, patientId?: string, db: Ctx["db"] = ctx.db) {
   const termine = await db
-    .select({ termin: schema.termine, sitzungsart: schema.sitzungsarten.name })
+    .select({
+      termin: schema.termine,
+      sitzungsart: schema.sitzungsarten.name,
+    })
     .from(schema.termine)
+    .innerJoin(schema.patienten, eq(schema.patienten.id, schema.termine.patientId))
     .leftJoin(schema.sitzungsarten, eq(schema.sitzungsarten.id, schema.termine.sitzungsartId))
     .where(
       and(
+        patientenFilter(ctx),
         eq(schema.termine.praxisId, ctx.praxis.id),
-        eq(schema.termine.patientId, patientId),
+        patientId ? eq(schema.termine.patientId, patientId) : undefined,
         inArray(schema.termine.status, ["erledigt", "nicht_erschienen"]),
       ),
     )
@@ -53,6 +61,7 @@ async function offeneTermine(ctx: Ctx, patientId: string, db: Ctx["db"] = ctx.db
       const ausfall = termin.status === "nicht_erschienen";
       return {
         id: termin.id,
+        patientId: termin.patientId,
         beginn: termin.beginn,
         dauerMinuten: Math.round((termin.ende.getTime() - termin.beginn.getTime()) / 60_000),
         bezeichnung: ausfall ? "Ausfallhonorar (nicht erschienen)" : (sitzungsart ?? "Sitzung"),
@@ -82,6 +91,35 @@ export const honorarnotenRouter = router({
   offen: inPraxis.input(z.object({ patientId: z.uuid() })).query(async ({ ctx, input }) => {
     await patientLaden(ctx, input.patientId);
     return offeneTermine(ctx, input.patientId);
+  }),
+
+  /** Alle Patienten mit Sitzungen, für die noch eine Honorarnote gelegt werden kann. */
+  abrechenbar: inPraxis.query(async ({ ctx }) => {
+    const offen = await offeneTermine(ctx);
+    const ids = [...new Set(offen.map((t) => t.patientId))];
+    if (ids.length === 0) return [];
+    const namen = new Map(
+      (
+        await ctx.db
+          .select({
+            id: schema.patienten.id,
+            vornameEnc: schema.patienten.vornameEnc,
+            nachnameEnc: schema.patienten.nachnameEnc,
+          })
+          .from(schema.patienten)
+          .where(and(patientenFilter(ctx), inArray(schema.patienten.id, ids)))
+      ).map((p) => [p.id, patientName(ctx.praxis, p.id, p.vornameEnc, p.nachnameEnc)]),
+    );
+    // Reihenfolge nach der ältesten offenen Sitzung: wer am längsten wartet, steht oben.
+    return ids.map((patientId) => {
+      const sitzungen = offen.filter((t) => t.patientId === patientId);
+      return {
+        patientId,
+        patientName: namen.get(patientId) ?? "",
+        summeCent: sitzungen.reduce((s, t) => s + t.honorarCent, 0),
+        sitzungen,
+      };
+    });
   }),
 
   liste: inPraxis
