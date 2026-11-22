@@ -39,20 +39,26 @@ export function Formular({
       className={className}
     >
       {children}
-      {ergebnis?.fehler && (
-        <p
-          role="alert"
-          className="rounded-lg bg-red-50 px-3 py-2 text-red-800 text-sm dark:bg-red-950 dark:text-red-200"
-        >
-          {ergebnis.fehler}
-        </p>
-      )}
+      <FehlerMeldung text={ergebnis?.fehler} />
       <div>
         <button type="submit" className={knopfKlasse} disabled={laeuft}>
           {laeuft ? "Einen Moment …" : knopf}
         </button>
       </div>
     </form>
+  );
+}
+
+/** Rote Fehlermeldung unter einem Formular; ohne Text nichts. */
+export function FehlerMeldung({ text }: { text?: string | null }) {
+  if (!text) return null;
+  return (
+    <p
+      role="alert"
+      className="rounded-lg bg-red-50 px-3 py-2 text-red-800 text-sm dark:bg-red-950 dark:text-red-200"
+    >
+      {text}
+    </p>
   );
 }
 

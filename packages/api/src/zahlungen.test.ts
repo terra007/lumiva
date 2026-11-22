@@ -56,7 +56,9 @@ async function sumupAttrappe(eingabe: string | URL | Request, init?: RequestInit
 }
 
 async function kontextFuer(benutzer: { id: string; name: string; email: string }) {
-  const auth = { api: { getSession: async () => ({ user: benutzer }) } } as never;
+  const auth = {
+    api: { getSession: async () => ({ user: { ...benutzer, twoFactorEnabled: true } }) },
+  } as never;
   return kontextErstellen({ db, auth, headers: new Headers(), hauptschluessel });
 }
 

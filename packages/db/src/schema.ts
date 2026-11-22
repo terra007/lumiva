@@ -398,6 +398,10 @@ export const user = pgTable("user", {
   email: text().notNull().unique(),
   emailVerified: boolean().notNull().default(false),
   image: text(),
+  /** Zwei-Faktor-Anmeldung (Better-Auth-Plugin twoFactor) eingeschaltet. */
+  twoFactorEnabled: boolean().notNull().default(false),
+  /** Wann der zweite Faktor zuletzt eingeschaltet wurde. Ältere Sitzungen gelten nicht mehr. */
+  zweiFaktorSeit: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
@@ -441,3 +445,23 @@ export const verification = pgTable("verification", {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Zwei-Faktor-Anmeldung (Better-Auth-Plugin twoFactor). Better Auth speichert TOTP-Geheimnis und
+ * Wiederherstellungscodes mit dem BETTER_AUTH_SECRET verschlüsselt.
+ */
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: text().primaryKey(),
+    secret: text().notNull(),
+    backupCodes: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: boolean().notNull().default(true),
+    failedVerificationCount: integer().notNull().default(0),
+    lockedUntil: timestamp({ withTimezone: true }),
+  },
+  (t) => [index().on(t.userId)],
+);

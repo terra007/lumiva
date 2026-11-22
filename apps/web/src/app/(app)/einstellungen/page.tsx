@@ -1,4 +1,5 @@
 import { AktionsKnopf, AnschriftFelder, Feld, Formular } from "@/components/formular";
+import { ZweiFaktor } from "@/components/zwei-faktor";
 import {
   praxisSpeichern,
   sitzungsartSpeichern,
@@ -20,6 +21,7 @@ export default async function Einstellungen() {
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <h1 className="font-semibold text-3xl tracking-tight">Einstellungen</h1>
+      <ZweiFaktor />
       <section className="karte flex flex-col gap-4">
         <h2 className="font-semibold">Praxis</h2>
         <p className="text-muted text-sm">

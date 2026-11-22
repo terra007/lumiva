@@ -40,6 +40,7 @@ export const praxisRouter = router({
   /** Wer bin ich, und habe ich schon eine Praxis? Öffentlich, damit die Oberfläche weiß, was sie zeigen soll. */
   ich: oeffentlich.query(({ ctx }) => ({
     benutzer: ctx.benutzer,
+    zweiFaktorFehlt: ctx.zweiFaktorFehlt,
     praxis: ctx.praxis
       ? { id: ctx.praxis.id, name: ctx.praxis.name, rolle: ctx.praxis.rolle }
       : null,

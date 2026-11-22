@@ -12,7 +12,9 @@ const maria = { id: "maria", name: "Mag. Maria Muster", email: "maria@test.at" }
 async function kontextFuer(benutzer: Kontext["benutzer"]): Promise<Kontext> {
   const { kontextErstellen } = await import("./kontext");
   const authAttrappe = {
-    api: { getSession: async () => (benutzer ? { user: benutzer } : null) },
+    api: {
+      getSession: async () => (benutzer ? { user: { ...benutzer, twoFactorEnabled: true } } : null),
+    },
   } as unknown as Parameters<typeof kontextErstellen>[0]["auth"];
   return kontextErstellen({ db, auth: authAttrappe, headers: new Headers(), hauptschluessel });
 }

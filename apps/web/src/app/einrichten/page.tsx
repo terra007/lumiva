@@ -4,8 +4,9 @@ import { praxisAnlegen } from "@/server/aktionen";
 import { api } from "@/server/lumiva";
 
 export default async function Einrichten() {
-  const { benutzer, praxis } = await (await api()).praxis.ich();
+  const { benutzer, praxis, zweiFaktorFehlt } = await (await api()).praxis.ich();
   if (!benutzer) redirect("/anmelden");
+  if (zweiFaktorFehlt) redirect("/zwei-faktor");
   if (praxis) redirect("/");
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-6 py-16">

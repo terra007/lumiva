@@ -13,7 +13,7 @@ const benutzer = { id: "ki", name: "Mag. KI Test", email: "ki@test.at" };
 
 async function api() {
   const auth = {
-    api: { getSession: async () => ({ user: benutzer }) },
+    api: { getSession: async () => ({ user: { ...benutzer, twoFactorEnabled: true } }) },
   } as unknown as Parameters<typeof kontextErstellen>[0]["auth"];
   return createCaller(
     await kontextErstellen({ db, auth, headers: new Headers(), hauptschluessel }),
