@@ -45,6 +45,8 @@ test("Patientin, Sitzung, Dokumentation und Honorarnote", async ({ page }) => {
   await expect(zeile.locator(".abzeichen", { hasText: "Storniert" })).toBeVisible();
 
   // Nach dem Storno ist die Sitzung wieder abrechenbar.
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Abrechenbar: Anna Berger" })).toBeVisible();
   await page.goto(`/patienten/${patientId}`);
   await expect(page.getByRole("button", { name: "Honorarnote ausstellen" })).toBeVisible();
 });
